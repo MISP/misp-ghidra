@@ -1,0 +1,10 @@
+# Ignore config files
+config.toml
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+venv/
+
+# Ignore archive
+archive/

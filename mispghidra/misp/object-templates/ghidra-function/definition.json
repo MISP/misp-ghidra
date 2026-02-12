@@ -1,0 +1,57 @@
+{
+  "attributes": {
+    "function-name":{
+      "description": "function name",
+      "misp-attribute": "text",
+      "ui-priority": 0
+    },
+    "fid-fh-hash": {
+      "description": "Function ID FH Function hash",
+      "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "bsim-vector": {
+      "description": "comma separated BSIM Feature Vector",
+      "misp-attribute": "text",
+      "ui-priority": 0
+    },
+    "bsim-signature": {
+      "description": "BSIM signature of the vector",
+      "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "fid-fx-hash": {
+      "description": "Function ID FX Extended hash",
+      "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "flirt-hash": {
+      "description": "IDA pro FLIRT hash",
+      "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "instruction-count": {
+      "description": "Instruction count",
+      "misp-attribute": "integer",
+      "ui-priority": 0
+    },
+    "decompiled-function": {
+      "description": "Ghidra decompiled function",
+      "misp-attribute": "text",
+      "ui-priority": 0
+    },
+    "entry-point": {
+      "description": "Function entry point",
+      "misp-attribute": "hex",
+      "ui-priority": 0 
+    }
+  },
+  "description": "ghidra function",
+  "meta-category": "ghidra",
+  "name": "ghidra-function",
+  "required": [
+    "function-name"
+  ],
+  "uuid": "83cbb768-ca72-47e9-a9dd-d43a063c7d6f",
+  "version": 8
+}
