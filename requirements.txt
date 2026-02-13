@@ -2,3 +2,4 @@ urllib3
 pymisp
 toml
 tlsh
+pyghidra

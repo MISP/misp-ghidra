@@ -6,7 +6,6 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from pymisp import PyMISP, MISPObject, MISPEvent
 
-from ghidra.app.script import GhidraScript
 from ghidra.feature.fid.service import FidService
 from ghidra.util.task import ConsoleTaskMonitor
 
@@ -27,13 +26,13 @@ class PyMISPGhidra:
 
     def __init__(
         self,
-        currentProgram,
+        ghidraProgram,
         config_path="misp/config/config.toml",
         disableUrlWarning=True,
     ):
 
         # Ghidra parameters
-        self.currentProgram = currentProgram
+        self.ghidraProgram = ghidraProgram
 
         self.FIDservice = FidService()
 
@@ -45,19 +44,19 @@ class PyMISPGhidra:
         self.decompiler.setOptions(options)
         self.decompiler.toggleSyntaxTree(False)
         self.decompiler.setSignatureSettings(0x4D)
-        if not self.decompiler.openProgram(self.currentProgram):
+        if not self.decompiler.openProgram(self.ghidraProgram):
             print("Unable to initialize the Decompiler interface!")
             print("%s" % self.decompiler.getLastMessage())
             raise Exception("Decompiler initialization failed")
 
-        self.language = self.currentProgram.getLanguage()
+        self.language = self.ghidraProgram.getLanguage()
 
         # PyMISP parameters
         if disableUrlWarning:
             urllib3.disable_warnings(category=InsecureRequestWarning)
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
-        print(script_dir)
+
         self.mispGhidraPath = script_dir
 
         if script_dir not in sys.path:
@@ -123,7 +122,7 @@ class PyMISPGhidra:
         # BSIM
         # sigres = self.decompiler.debugSignatures(func,10,None)
         signature = self.decompiler.generateSignatures(func, True, 10, None)
-        print(signature)
+
         vector = signature.features
 
         # For now this is a comma separated hex string of the vector
@@ -197,6 +196,15 @@ class PyMISPGhidra:
         self.decompiler.closeProgram()
         self.decompiler.dispose()
 
+    def get_function_at_address(self, address):
+
+        func = self.ghidraProgram.getFunctionManager().getFunctionAt(address)
+
+        if func is None:
+            raise ValueError(f"No function found at address {address}")
+
+        return func
+
 
 # LEGACY
 # def add_object_to_event(self, event_id, fileobject):
@@ -218,7 +226,7 @@ class PyMISPGhidra:
 
 #     ghidra_project = MISPObject("ghidra-project",strict=True, misp_objects_template_custom=template)
 
-#     for func in self.currentProgram.getFunctionManager().getFunctions(True):
+#     for func in self.ghidraProgram.getFunctionManager().getFunctions(True):
 
 #         name = func.getName()
 #         ghidra_project.add_attribute("function-name", name)
@@ -236,13 +244,13 @@ class PyMISPGhidra:
 
 # def fid_hash_event(self,event_name="Ghidra Exported FID hashes",limit=999):
 
-#     event = self.create_empty_event( f"Ghidra FID hahes from {self.currentProgram.getName()}")
+#     event = self.create_empty_event( f"Ghidra FID hahes from {self.ghidraProgram.getName()}")
 
 #     with open(self.mispGhidraPath+'/misp/object-templates/ghidra-function/definition.json') as f:
 #         template = json.load(f)
 
 #     i = 0
-#     for func in self.currentProgram.getFunctionManager().getFunctions(True):
+#     for func in self.ghidraProgram.getFunctionManager().getFunctions(True):
 
 #         if i> limit: break
 
