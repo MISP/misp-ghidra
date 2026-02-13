@@ -1,6 +1,6 @@
-This is a work in progress. MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
+This is a work in progress.
 
-[correlation](/img/correlation.png)
+MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
 
 # Installation
 
@@ -58,4 +58,6 @@ For a malware analysis, an event could contain objects :
 	ghidra | ghidra-program-metadata
     ghidra | ghidra-function
 
+# MISP Correlation graph
 
+<img src="img/correlation.png">
