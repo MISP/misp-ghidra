@@ -28,4 +28,13 @@ pyghidra \
     --function-address ${FUNCTION_ADDRESS} \
     --verbose
 
-# Add all functions to new event
+# Add multiple functions to new event
+pyghidra \
+    --project-name ${PROJECT_NAME} \
+    --project-path ${PROJECT_PATH} \
+    ${BINARY_PATH} \
+    ghidra_scripts/ghidra-functions-to-MISP.py \
+    --event-uuid "new" \
+    --function-address ${FUNCTION_ADDRESS} \
+    --function-address 0010c120 \
+    --verbose

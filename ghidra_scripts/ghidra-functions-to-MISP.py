@@ -32,7 +32,7 @@ from pyghidra.script import get_current_interpreter
 import time
 
 
-def main(func_address=None, event_uuid=None, verbose=False):
+def main(func_addresses=None, event_uuid=None, verbose=False):
 
     # IO Handler regardless of headless or GUI mode
     interpreter = get_current_interpreter()
@@ -41,7 +41,7 @@ def main(func_address=None, event_uuid=None, verbose=False):
 
     if verbose:
         print("Parameters:")
-        print(f"    Function address: {func_address}")
+        print(f"    Function addresses: {func_addresses}")
         print(f"    Event UUID: {event_uuid}")
         print(f"    Headless mode: {isHeadless}")
 
@@ -49,24 +49,32 @@ def main(func_address=None, event_uuid=None, verbose=False):
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
 
     # Handle input parameters regardless of headless or GUI mode
-    func_address = IOHandler.handle_parameter(func_address, "function-address")
-    func_address = interpreter.toAddr(func_address)
+    for i, func_address in enumerate(func_addresses):
 
+        func_addresses[i] = IOHandler.handle_parameter(func_address, "function-address")
+
+    print(func_addresses)
+    func_addresses = [interpreter.toAddr(addr) for addr in func_addresses]
+    funcs = []
     # Find function
-    try:
-        func = interpreter.getFunctionAt(func_address)
-    except Exception as e:
-        IOHandler.handle_exception_message(e, "Error retrieving function")
-    if func is None:
-        IOHandler.handle_exception_message(
-            ValueError(f"No function found at address {func_address}"),
-            "Error retrieving function",
-        )
+    for func_address in func_addresses:
+        try:
+            func = interpreter.getFunctionAt(func_address)
+            funcs.append(func)
+        except Exception as e:
+            IOHandler.handle_exception_message(e, "Error retrieving function")
+        if func is None:
+            IOHandler.handle_exception_message(
+                ValueError(f"No function found at address {func_address}"),
+                "Error retrieving function",
+            )
 
     event_uuid = IOHandler.handle_parameter(event_uuid, "event-uuid")
 
     if event_uuid == "new":
-        new_event_name = f"Ghidra Exported Function {func.getName()} from {interpreter.currentProgram.getName()}"
+        new_event_name = (
+            f"Ghidra Exported functions from {interpreter.currentProgram.getName()}"
+        )
         event = mispGhidra.create_empty_event(new_event_name)
     else:
         try:
@@ -79,10 +87,11 @@ def main(func_address=None, event_uuid=None, verbose=False):
         except Exception as e:
             IOHandler.handle_exception_message(e, "Error retrieving event")
 
-    mispGhidra.add_object_from_function(func, event=event)
+    for func in funcs:
+        mispGhidra.add_object_from_function(func, event=event)
 
     IOHandler.handle_message(
-        f"Successfully added function {func.getName()} to event {event.info} ({event.uuid}). "
+        f"Successfully added functions to event {event.info} ({event.uuid}). "
     )
 
 
@@ -90,22 +99,25 @@ if __name__ == "__main__":
     start = time.time()
 
     args = getScriptArgs()
-    func_address = None
+    func_addresses = []
     event_uuid = None
     verbose = False
 
-    # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--verbose']
+    # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
         if args[i] == "--function-address" and i + 1 < len(args):
-            func_address = args[i + 1]
+            func_addresses.append(args[i + 1])
         elif args[i] == "--event-uuid" and i + 1 < len(args):
             event_uuid = args[i + 1]
         elif args[i] == "--verbose":
             verbose = True
 
+    if func_addresses == []:
+        func_addresses = [None]
+
     print(f"Running {os.path.basename(__file__)} with arguments:")
 
-    main(func_address=func_address, event_uuid=event_uuid, verbose=verbose)
+    main(func_addresses=func_addresses, event_uuid=event_uuid, verbose=verbose)
 
     end = time.time()
     print(f"Operation took {end - start:.6f} seconds")

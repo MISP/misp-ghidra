@@ -127,7 +127,7 @@ class PyMISPGhidra:
 
         # For now this is a comma separated hex string of the vector
         vector_csv = ",".join([format(f & 0xFFFFFFFF, "08x") for f in vector])
-        print(vector_csv)
+
         print(f"Generated BSIM vector for function {func.getName()}")
 
         ghidra_function.add_attribute("function-name", name)

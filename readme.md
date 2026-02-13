@@ -1,4 +1,6 @@
-This is a work in progress. MISP-Ghidra is a python library and scripts to extend Ghidra for exporting and 
+This is a work in progress. MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
+
+[correlation](/img/correlation.png)
 
 # Installation
 
@@ -7,11 +9,20 @@ install requirements with your pyghidra venv
 ~/.config/ghidra/ghidra_12.0.2_PUBLIC/venv/bin/pip install -r requirements.txt
 ```
 
-Add the `ghidra_scripts` directory to the Ghidra Bundle Manager
+Copy the MISP config.toml template and edit with your own API keys
+```bash
+cp mispghidra/misp/config/config.template.toml mispghidra/misp/config/config.toml
+```
 
 # GUI Usage
 
 Launch ghidra with PyGhidra `ghidra_12.0.2_PUBLIC/support/pyghidraRun`
+
+Add the `ghidra_scripts` directory to the Ghidra Bundle Manager
+
+The scripts are under the category `MISP`
+
+Run `test-MISP-API.py` to test the connection to the MISP instances API (configured in config.toml)
 
 # Headless Usage
 ## Add object to existing event in MISP
@@ -36,7 +47,7 @@ pyghidra \
     --function-address ${FUNCTION_ADDRESS} \
     --verbose
 ```
-# Example usage
+# Example MISP usage
 
 For a malware analysis, an event could contain objects : 
 
