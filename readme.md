@@ -33,8 +33,7 @@ pyghidra \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-function-to-MISP.py \
     --event-uuid ${EVENT_UUID_EXISTING} \
-    --function-address ${FUNCTION_ADDRESS} \
-    --verbose
+    --function-address ${FUNCTION_ADDRESS}
 ```
 ## Add object to new event in MISP
 ```bash
@@ -44,9 +43,20 @@ pyghidra \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-function-to-MISP.py \
     --event-uuid "new" \
-    --function-address ${FUNCTION_ADDRESS} \
-    --verbose
+    --function-address ${FUNCTION_ADDRESS}
 ```
+
+## Add all functions as objects to an event
+```bash
+pyghidra -v \
+    --project-name ${PROJECT_NAME} \
+    --project-path ${PROJECT_PATH} \
+    ${BINARY_PATH} \
+    ghidra_scripts/ghidra-functions-to-MISP.py \
+    --event-uuid "new" \
+    --all-functions
+```
+    
 # Example MISP usage
 
 For a malware analysis, an event could contain objects : 
@@ -61,3 +71,4 @@ For a malware analysis, an event could contain objects :
 # MISP Correlation graph
 
 <img src="img/correlation.png">
+

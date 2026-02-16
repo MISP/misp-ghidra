@@ -3,11 +3,21 @@
     "function-name":{
       "description": "function name",
       "misp-attribute": "text",
+      "ui-priority": 1
+    },
+    "external-library": {
+      "description": "external library name if the function is an external",
+      "misp-attribute": "text",
       "ui-priority": 0
     },
-    "fid-fh-hash": {
-      "description": "Function ID FH Function hash",
+    "entry-point": {
+      "description": "function entry point address",
       "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "instruction-count": {
+      "description": "Instruction count",
+      "misp-attribute": "integer",
       "ui-priority": 0
     },
     "bsim-vector": {
@@ -17,6 +27,11 @@
     },
     "bsim-signature": {
       "description": "BSIM signature of the vector",
+      "misp-attribute": "hex",
+      "ui-priority": 0
+    },
+    "fid-fh-hash": {
+      "description": "Function ID FH Function hash",
       "misp-attribute": "hex",
       "ui-priority": 0
     },
@@ -30,20 +45,10 @@
       "misp-attribute": "hex",
       "ui-priority": 0
     },
-    "instruction-count": {
-      "description": "Instruction count",
-      "misp-attribute": "integer",
-      "ui-priority": 0
-    },
     "decompiled-function": {
       "description": "Ghidra decompiled function",
       "misp-attribute": "text",
       "ui-priority": 0
-    },
-    "entry-point": {
-      "description": "Function entry point",
-      "misp-attribute": "hex",
-      "ui-priority": 0 
     }
   },
   "description": "ghidra function",
@@ -52,6 +57,6 @@
   "required": [
     "function-name"
   ],
-  "uuid": "83cbb768-ca72-47e9-a9dd-d43a063c7d6f",
-  "version": 8
+  "uuid": "4679fa5b-a9b4-463a-aaec-1ca563abedde",
+  "version": 1
 }

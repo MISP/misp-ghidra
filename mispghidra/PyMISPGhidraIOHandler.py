@@ -1,5 +1,8 @@
+import logging
+import os
 from pyghidra.script import get_current_interpreter
 
+logger = logging.getLogger(__name__)
 
 class PyMISPGhidraIOHandler:
     """
@@ -7,12 +10,12 @@ class PyMISPGhidraIOHandler:
     Only works for scripts
     """
 
-    def __init__(self, verbose=False, isHeadless=True):
+    def __init__(self, verbose=False, isHeadless=True, script_name="PyMISPGhidraScript"):
 
         self.interpreter = get_current_interpreter()
         self.verbose = verbose
         self.isHeadless = isHeadless
-        self.script_name = self.interpreter.scriptName
+        self.script_name = script_name
 
     def handle_parameter(self, param, param_type):
 
@@ -35,7 +38,9 @@ class PyMISPGhidraIOHandler:
                 "Enter the UUID of the MISP event to add the function object to (type 'new' to create a new event):",
                 "new",
             ),
+
             "function-addresses": lambda: self.interpreter.currentAddress.toString(),
+
             "function-address": lambda: self.interpreter.askAddress(
                 "Enter Function Address",
                 "Enter the address of the function to add to MISP (default is current address):",
@@ -70,5 +75,5 @@ class PyMISPGhidraIOHandler:
 
     def console_log(self, message):
 
-        print(f"[{self.script_name}] {message}")
-        # TODO logging ?
+        logger.info(f"[{self.script_name}] {message}")
+

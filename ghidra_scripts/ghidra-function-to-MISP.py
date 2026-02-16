@@ -29,7 +29,9 @@ from mispghidra.PyMISPGhidraIOHandler import PyMISPGhidraIOHandler
 
 from pyghidra.script import get_current_interpreter
 
-import time
+import time, logging, argparse
+
+logger = logging.getLogger(__name__)
 
 
 def main(func_address=None, event_uuid=None, verbose=False):
@@ -39,14 +41,15 @@ def main(func_address=None, event_uuid=None, verbose=False):
 
     isHeadless = interpreter.getState().getTool() is None
 
-    if verbose:
-        print("Parameters:")
-        print(f"    Function address: {func_address}")
-        print(f"    Event UUID: {event_uuid}")
-        print(f"    Headless mode: {isHeadless}")
+    logger.info(f"Running main {os.path.basename(__file__)} with parameters:")
+    logger.info(f"    Function address: {func_address}")
+    logger.info(f"    Event UUID: {event_uuid}")
+    logger.info(f"    Headless mode: {isHeadless}")
 
-    IOHandler = PyMISPGhidraIOHandler(verbose=verbose, isHeadless=isHeadless)
+    IOHandler = PyMISPGhidraIOHandler(verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__))
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
+
+    
 
     # Handle input parameters regardless of headless or GUI mode
     func_address = IOHandler.handle_parameter(func_address, "function-address")
@@ -72,10 +75,7 @@ def main(func_address=None, event_uuid=None, verbose=False):
         try:
             event = mispGhidra.misp.get_event(event_uuid, pythonify=True)
             if event is None:
-                IOHandler.handle_exception_message(
-                    ValueError("No event found with uuid " + event_uuid),
-                    "Error retrieving event",
-                )
+                raise ValueError(f"No event found with uuid {event_uuid}")
         except Exception as e:
             IOHandler.handle_exception_message(e, "Error retrieving event")
 
@@ -93,7 +93,8 @@ if __name__ == "__main__":
     func_address = None
     event_uuid = None
     verbose = False
-
+    log_file = "/tmp/ghidra-misp.log"
+    
     # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
         if args[i] == "--function-address" and i + 1 < len(args):
@@ -102,10 +103,14 @@ if __name__ == "__main__":
             event_uuid = args[i + 1]
         elif args[i] == "--verbose":
             verbose = True
+        elif args[i] == "--log-file" and i + 1 < len(args):
+            log_file = args[i + 1]
 
-    print(f"Running {os.path.basename(__file__)} with arguments:")
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+    #logging.basicConfig(level=logging.INFO,stream=sys.stderr)
 
     main(func_address=func_address, event_uuid=event_uuid, verbose=verbose)
 
     end = time.time()
-    print(f"Operation took {end - start:.6f} seconds")
+    logger.info(f"Operation took {end - start:.6f} seconds")
