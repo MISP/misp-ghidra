@@ -32,7 +32,14 @@ import time, logging
 
 logger = logging.getLogger(__name__)
 
-def main(func_addresses=None, event_uuid=None, all_functions=False, call_tree=True, verbose=False):
+
+def main(
+    func_addresses=None,
+    event_uuid=None,
+    all_functions=False,
+    call_tree=True,
+    verbose=False,
+):
 
     # IO Handler regardless of headless or GUI mode
     interpreter = get_current_interpreter()
@@ -48,7 +55,9 @@ def main(func_addresses=None, event_uuid=None, all_functions=False, call_tree=Tr
     logger.info(f"    Verbose: {verbose}")
     logger.info(f"    All functions: {all_functions}")
 
-    IOHandler = PyMISPGhidraIOHandler(verbose=verbose, isHeadless=isHeadless,script_name=os.path.basename(__file__))
+    IOHandler = PyMISPGhidraIOHandler(
+        verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__)
+    )
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
 
     # If --all-functions is set, ignore provided function addresses and use all functions in the program
@@ -93,7 +102,7 @@ def main(func_addresses=None, event_uuid=None, all_functions=False, call_tree=Tr
             IOHandler.handle_exception_message(e, "Error retrieving event")
 
     mispGhidra.add_object_from_functions(funcs, event=event, call_tree=call_tree)
-    
+
     IOHandler.handle_message(
         f"Successfully added functions to event {event.info} ({event.uuid}). "
     )
@@ -101,8 +110,6 @@ def main(func_addresses=None, event_uuid=None, all_functions=False, call_tree=Tr
 
 if __name__ == "__main__":
     start = time.time()
-
-    
 
     args = getScriptArgs()
     func_addresses = []
@@ -127,17 +134,21 @@ if __name__ == "__main__":
         elif args[i] == "--no-call-tree":
             call_tree = False
 
-        
     if func_addresses == []:
         func_addresses = [None]
 
-
     if verbose:
         logger.setLevel(logging.DEBUG)
-        
-    #logging.basicConfig(filename=log_file, level=logging.INFO,stream=sys.stderr)
 
-    main(func_addresses=func_addresses, event_uuid=event_uuid, all_functions=all_functions, call_tree=call_tree, verbose=verbose)
+    # logging.basicConfig(filename=log_file, level=logging.INFO,stream=sys.stderr)
+
+    main(
+        func_addresses=func_addresses,
+        event_uuid=event_uuid,
+        all_functions=all_functions,
+        call_tree=call_tree,
+        verbose=verbose,
+    )
 
     end = time.time()
     logger.info(f"Operation took {end - start:.6f} seconds")

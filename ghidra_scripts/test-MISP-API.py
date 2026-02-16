@@ -33,6 +33,7 @@ import time, datetime, logging
 
 logger = logging.getLogger(__name__)
 
+
 def add_test_event():
     mispGhidra = PyMISPGhidra(currentProgram)
 
@@ -56,8 +57,8 @@ def get_misp_version():
 
 if __name__ == "__main__":
 
-    #log_file = "/tmp/misp-ghidra.log"
-    logging.basicConfig(level=logging.INFO,stream=sys.stderr)
+    # log_file = "/tmp/misp-ghidra.log"
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
     headless = getState().getTool() is None
     print(f"Running in headless mode: {headless}")

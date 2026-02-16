@@ -4,13 +4,16 @@ from pyghidra.script import get_current_interpreter
 
 logger = logging.getLogger(__name__)
 
+
 class PyMISPGhidraIOHandler:
     """
     Helper class to handle user input and messages in a consistent way across Ghidra scripts, regardless of Headless or GUI mode.
     Only works for scripts
     """
 
-    def __init__(self, verbose=False, isHeadless=True, script_name="PyMISPGhidraScript"):
+    def __init__(
+        self, verbose=False, isHeadless=True, script_name="PyMISPGhidraScript"
+    ):
 
         self.interpreter = get_current_interpreter()
         self.verbose = verbose
@@ -38,9 +41,7 @@ class PyMISPGhidraIOHandler:
                 "Enter the UUID of the MISP event to add the function object to (type 'new' to create a new event):",
                 "new",
             ),
-
             "function-addresses": lambda: self.interpreter.currentAddress.toString(),
-
             "function-address": lambda: self.interpreter.askAddress(
                 "Enter Function Address",
                 "Enter the address of the function to add to MISP (default is current address):",
@@ -76,4 +77,3 @@ class PyMISPGhidraIOHandler:
     def console_log(self, message):
 
         logger.info(f"[{self.script_name}] {message}")
-

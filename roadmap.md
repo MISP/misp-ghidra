@@ -1,5 +1,5 @@
 Object :
-
+ - file and malware default MISP objects
  - ghidra-function
     functions objects are linked by callee/caller relationships
 

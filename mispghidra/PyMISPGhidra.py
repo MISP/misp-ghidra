@@ -86,8 +86,6 @@ class PyMISPGhidra:
         ) as f:
             self.ghidra_function_template = json.load(f)
 
-        
-
     def create_empty_event(self, title="Ghidra Exported Event"):
 
         event = MISPEvent()
@@ -108,33 +106,50 @@ class PyMISPGhidra:
     def _create_object_from_function(self, func):
 
         ghidra_function = MISPObject(
-            "ghidra-function", strict=True, misp_objects_template_custom=self.ghidra_function_template
+            "ghidra-function",
+            strict=True,
+            misp_objects_template_custom=self.ghidra_function_template,
         )
 
         name = func.getName()
-
-        if name is None:
-            name = "unknown_function"
-        logger.info(f"Creating object for function {name} at address {func.getEntryPoint()}")
+        ghidra_function.add_attribute("function-name", name)
 
         entry_point = func.getEntryPoint()
-
-        
-
-        ghidra_function.add_attribute("function-name", name)
         ghidra_function.add_attribute(
             "entry-point", Long.toHexString(entry_point.getOffset())
         )
 
-        
+        logger.info(f"Creating object for function {name} at address {entry_point}")
+
+        if func.isThunk():
+            ext_loc = func.getExternalLocation()
+
+            if ext_loc is not None:
+                # Get the Library object
+                lib = ext_loc.getLibrary()
+                ghidra_function.add_attribute(
+                    "external-library", Long.toHexString(lib.getName())
+                )
+            else:
+                ghidra_function.add_attribute("external-library", "<EXTERNAL>")
+
+        ghidra_function.add_attribute(
+            "decompiler-minor-version", self.decompiler.getMinorVersion()
+        )
+        ghidra_function.add_attribute(
+            "decompiler-major-version", self.decompiler.getMajorVersion()
+        )
+
+        instructions_count = func.getBody().getNumAddresses()
+        ghidra_function.add_attribute("instruction-count", instructions_count)
 
         # Function ID
         hashFunction = self.FIDservice.hashFunction(func)
 
         if hashFunction is None:
-            logger.error(f"Failed to hash function {name} at address {entry_point}. Skipping FID attributes.")
+            logger.error(f"Failed to hash function {name} at address {entry_point}. ")
             return ghidra_function
-        
+
         fh_hex = hashFunction.fullHash
         fx_hex = hashFunction.specificHash
 
@@ -144,19 +159,17 @@ class PyMISPGhidra:
             fx_hex = hashFunction.getSpecificHash()
 
         # BSIM vector
-        instructions_count = func.getBody().getNumAddresses()
+
         signature = self.decompiler.generateSignatures(func, True, 10, None)
         vector = signature.features
         # For now this is a comma separated hex string of the vector
         vector_csv = ",".join([format(f & 0xFFFFFFFF, "08x") for f in vector])
 
-        ghidra_function.add_attribute("instruction-count", instructions_count)
         ghidra_function.add_attribute("bsim-vector", vector_csv)
 
         ghidra_function.add_attribute("fid-fh-hash", Long.toHexString(fh_hex))
         ghidra_function.add_attribute("fid-fx-hash", Long.toHexString(fx_hex))
 
-        
         return ghidra_function
 
     def add_object_from_function(self, func, event):
@@ -165,22 +178,26 @@ class PyMISPGhidra:
         self.misp.add_object(event, obj)
         print(f"ghidra-function:uuid:{obj.uuid}", file=sys.stdout)
 
-    def create_call_tree_relations(self, event: MISPEvent, functions_objects_dict = None, limit=OBJECT_CREATION_LIMIT):
-        """"
+    def create_call_tree_relations(
+        self, event: MISPEvent, functions_objects_dict=None, limit=OBJECT_CREATION_LIMIT
+    ):
+        """ "
         functions_objects_dict : str function entry-point, MISPObject ghidra-function
         """
         # Call tree relations
-        
+
         # Reload
         event = self.misp.get_event(event.uuid, pythonify=True)
 
         if functions_objects_dict is None:
             # Find all objects in the event and create a mapping of function name to object
             functions_objects_dict = {}
-            logger.info("Missing functions_objects_dict. Creating mapping of function names to MISP objects...")
+            logger.info(
+                "Missing functions_objects_dict. Creating mapping of function names to MISP objects..."
+            )
             # Search for "ghidra-function" objects in the event and map them to their corresponding function names
             for obj in event.get_objects_by_name("ghidra-function"):
-            
+
                 if obj.name == "ghidra-function":
                     entry_points = obj.get_attributes_by_relation("entry-point")
                     for entry_point_attr in entry_points:
@@ -194,27 +211,29 @@ class PyMISPGhidra:
                 break
             if monitor.isCancelled():
                 break
-            
+
             called_funcs = func.getCalledFunctions(monitor)
             if called_funcs is not None:
-                
+
                 for called_func in called_funcs:
-                    
+
                     if called_func not in functions_objects_dict:
                         continue
 
-                    
-                    
                     try:
                         func_obj = functions_objects_dict[func]
                         func_call_ref = MISPObjectReference()
                         func_call_ref.object_uuid = func_obj.uuid
                         func_call_ref.relationship_type = "calls"
-                        func_call_ref.referenced_uuid = functions_objects_dict[called_func].uuid
+                        func_call_ref.referenced_uuid = functions_objects_dict[
+                            called_func
+                        ].uuid
                         func_call_ref.comment = "Function call relation"
-                        self.misp.add_object_reference(func_call_ref,pythonify=True)
+                        self.misp.add_object_reference(func_call_ref, pythonify=True)
                     except Exception as e:
-                        logger.error(f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}")
+                        logger.error(
+                            f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}"
+                        )
                         continue
             i += 1
 
@@ -234,28 +253,31 @@ class PyMISPGhidra:
                 break
             if monitor.isCancelled():
                 break
-            
-            
 
             try:
                 obj = self._create_object_from_function(func)
                 result = self.misp.add_object(event, obj)
-                if result is None: raise ValueError("Failed to add object to MISP")
+                if result is None:
+                    raise ValueError("Failed to add object to MISP")
                 print(f"ghidra-function:uuid:{obj.uuid}")
                 functions_objects_dict[func] = obj
                 count += 1
             except Exception as e:
-                logger.error(f"Failed to create object for function {func.getName()}: {e}")
+                logger.error(
+                    f"Failed to create object for function {func.getName()}: {e}"
+                )
                 failed_object_creations.append(func.getName())
                 fail_count += 1
             finally:
                 i += 1
-        
-        logger.info(f"Successfully created {count} objects for functions. Failed to create {fail_count} objects. Now processing call tree relations...")
-        
+
+        logger.info(
+            f"Successfully created {count} objects for functions. Failed to create {fail_count} objects. Now processing call tree relations..."
+        )
+
         if not call_tree:
             return count, fail_count, failed_object_creations
-        
+
         # Iterate on all functions in Ghidra, slow
         # Call tree relations
         # i = 0
@@ -265,19 +287,19 @@ class PyMISPGhidra:
         #         break
         #     if monitor.isCancelled():
         #         break
-            
+
         #     # TODO objects relations for caller/callee
-            
+
         #     # Set <Function> getCalledFunctions
         #     called_funcs = func.getCalledFunctions(monitor)
         #     if called_funcs is not None:
-                
+
         #         for called_func in called_funcs:
         #             if called_func == func:
         #                 continue
         #             if called_func not in functions_objects_dict:
         #                 continue
- 
+
         #             try:
         #                 func_obj = functions_objects_dict[func]
         #                 func_call_ref = MISPObjectReference()
@@ -292,7 +314,9 @@ class PyMISPGhidra:
         #     i += 1
 
         # Iterqte only on the functions we created objects for, faster but misses relations with functions that were not exported
-        self.create_call_tree_relations(event, limit=limit, functions_objects_dict=functions_objects_dict)
+        self.create_call_tree_relations(
+            event, limit=limit, functions_objects_dict=functions_objects_dict
+        )
         return count, fail_count, failed_object_creations
 
     def dispose(self):
@@ -307,12 +331,10 @@ class PyMISPGhidra:
             raise ValueError(f"No function found at address {address}")
 
         return func
-    
 
     # def testrelations(self):
     #     uuid = "21b67f59-3062-419a-9b72-7e97d54994ff"
     #     event = self.misp.get_event(uuid, pythonify=True)
-
 
     #     obj1 = event.objects[0]
     #     obj2 = event.objects[1]
@@ -323,7 +345,6 @@ class PyMISPGhidra:
     #     obj_ref.referenced_uuid = obj1.uuid
     #     obj_ref.comment = "Test relation"
     #     ref = self.misp.add_object_reference(obj_ref,pythonify=True)
-
 
 
 # LEGACY

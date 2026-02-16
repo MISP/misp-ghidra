@@ -46,10 +46,10 @@ def main(func_address=None, event_uuid=None, verbose=False):
     logger.info(f"    Event UUID: {event_uuid}")
     logger.info(f"    Headless mode: {isHeadless}")
 
-    IOHandler = PyMISPGhidraIOHandler(verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__))
+    IOHandler = PyMISPGhidraIOHandler(
+        verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__)
+    )
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
-
-    
 
     # Handle input parameters regardless of headless or GUI mode
     func_address = IOHandler.handle_parameter(func_address, "function-address")
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     event_uuid = None
     verbose = False
     log_file = "/tmp/ghidra-misp.log"
-    
+
     # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
         if args[i] == "--function-address" and i + 1 < len(args):
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     if verbose:
         logger.setLevel(logging.DEBUG)
-    #logging.basicConfig(level=logging.INFO,stream=sys.stderr)
+    # logging.basicConfig(level=logging.INFO,stream=sys.stderr)
 
     main(func_address=func_address, event_uuid=event_uuid, verbose=verbose)
 

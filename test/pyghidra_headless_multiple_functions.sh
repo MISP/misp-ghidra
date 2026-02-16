@@ -2,7 +2,7 @@
 source setup.sh
 
 # VARIABLES
-PROJECT_PATH="/tmp/test-projects/"
+PROJECT_PATH="$(mktemp -d /tmp/ghidra-temp-project.XXXXXXXXX)"
 PROJECT_NAME="temp_project"
 BINARY_PATH="test/bin/test_ssl.elf"
 EVENT_UUID_EXISTING="b96c200f-a0de-4890-b130-6e7885b206dd"

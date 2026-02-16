@@ -33,6 +33,7 @@ import time, logging
 
 logger = logging.getLogger(__name__)
 
+
 def main(event_uuid=None, verbose=False):
 
     # IO Handler regardless of headless or GUI mode
@@ -44,13 +45,13 @@ def main(event_uuid=None, verbose=False):
     logger.info(f"    Event UUID: {event_uuid}")
     logger.info(f"    Verbose: {verbose}")
 
-
-    IOHandler = PyMISPGhidraIOHandler(verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__))
+    IOHandler = PyMISPGhidraIOHandler(
+        verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__)
+    )
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
 
     event_uuid = IOHandler.handle_parameter(event_uuid, "event-uuid")
 
-    
     try:
         event = mispGhidra.misp.get_event(event_uuid, pythonify=True)
         if event is None:
@@ -73,7 +74,6 @@ if __name__ == "__main__":
     verbose = False
     log_file = "/tmp/misp-ghidra.log"
 
-    
     # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
         if args[i] == "--event-uuid" and i + 1 < len(args):
@@ -84,24 +84,22 @@ if __name__ == "__main__":
             log_file = args[i + 1]
 
     if not sys.stdin.isatty():
-        
+
         input_data = sys.stdin.read().splitlines()
         for line in input_data:
 
-            parts = line.split(':')
+            parts = line.split(":")
             if parts[0] == "event" and parts[1] == "uuid":
                 event_uuid = parts[2]
-                
-
 
     for line in sys.stdin:
         uuid = line.strip()
         if not uuid:
             continue
-            
+
         logging.critical(f"Ghidra is now processing ID: {uuid}")
 
-    #logging.basicConfig(filename=log_file, level=logging.INFO,stream=sys.stderr)
+    # logging.basicConfig(filename=log_file, level=logging.INFO,stream=sys.stderr)
 
     logger.info(f"Running {os.path.basename(__file__)} with arguments:")
 
