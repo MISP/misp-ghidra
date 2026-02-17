@@ -10,3 +10,4 @@ venv/
 archive/
 .vscode/
 .env
+ghidra_scripts/hideme.py

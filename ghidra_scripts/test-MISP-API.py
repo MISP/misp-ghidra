@@ -1,9 +1,9 @@
-# Test the connection to the MISP instance configured in /mispghidra/misp/config/config.toml
-# @author
-# @category MISP.utils
+# Test connection to the MISP instance
+# @author Thomas Caillet @rdmmf
+# @category MISP.ghidra-function
 # @keybinding
-# @menupath
-# @toolbar
+# @menupath Tools.MISP.Test connection to the MISP instance
+# @toolbar misp.png
 # @runtime PyGhidra
 
 import sys, os, importlib
@@ -49,7 +49,7 @@ def add_test_event():
 
 def get_misp_version():
 
-    mispGhidra = PyMISPGhidra(currentProgram)
+    mispGhidra = PyMISPGhidra(None)
     version = mispGhidra.misp.version["version"]
 
     return version

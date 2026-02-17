@@ -1,9 +1,9 @@
-# Add a ghidra-function object to a MISP Event (provide uuid)
-# @author
+# Recreate call tree in MISP
+# @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath
-# @toolbar
+# @menupath Tools.MISP.Ghidra Functions.Others.Recreate call tree in MISP
+# @toolbar misp.png
 # @runtime PyGhidra
 
 import sys, os, importlib
@@ -34,7 +34,7 @@ import time, logging
 logger = logging.getLogger(__name__)
 
 
-def main(event_uuid=None, verbose=False):
+def main(event_uuid=None):
 
     # IO Handler regardless of headless or GUI mode
     interpreter = get_current_interpreter()
@@ -43,15 +43,25 @@ def main(event_uuid=None, verbose=False):
 
     logger.info(f"Running main {os.path.basename(__file__)} with parameters:")
     logger.info(f"    Event UUID: {event_uuid}")
-    logger.info(f"    Verbose: {verbose}")
 
+    # Boilerplate
+    if interpreter.currentProgram == None:
+        if isHeadless:
+            raise Exception("No program selected")
+        else:
+            selectedProgram = interpreter.askProgram("Select a program")
+
+        interpreter.openProgram(selectedProgram)
+
+    # Boilerplate
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
     IOHandler = PyMISPGhidraIOHandler(
         mispGhidra,
-        verbose=verbose,
         isHeadless=isHeadless,
         script_name=os.path.basename(__file__),
     )
+
+    # Boilerplate UUID search
     if event_uuid == None:
         # No UUID provided, use sha256 search
         search_events = mispGhidra.get_existing_events()
@@ -83,15 +93,13 @@ if __name__ == "__main__":
 
     args = getScriptArgs()
     event_uuid = None
-    verbose = False
+
     log_file = "/tmp/misp-ghidra.log"
 
     # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
         if args[i] == "--event-uuid" and i + 1 < len(args):
             event_uuid = args[i + 1]
-        elif args[i] == "--verbose":
-            verbose = True
         elif args[i] == "--log-file" and i + 1 < len(args):
             log_file = args[i + 1]
 
@@ -113,7 +121,7 @@ if __name__ == "__main__":
 
     logger.info(f"Running {os.path.basename(__file__)} with arguments:")
 
-    main(event_uuid=event_uuid, verbose=verbose)
+    main(event_uuid=event_uuid)
 
     end = time.time()
     logger.info(f"Operation took {end - start:.6f} seconds")

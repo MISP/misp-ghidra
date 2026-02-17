@@ -8,6 +8,8 @@ import ghidra.program.model.listing.Function as Function
 
 logger = logging.getLogger(__name__)
 
+GUI_ASK_CHOICE_LIMIT = 100
+
 
 class PyMISPGhidraIOHandler:
     """
@@ -18,18 +20,16 @@ class PyMISPGhidraIOHandler:
     def __init__(
         self,
         mispghidra=None,
-        verbose=False,
         isHeadless=True,
         script_name="PyMISPGhidraScript",
     ):
 
         self.interpreter = get_current_interpreter()
-        self.verbose = verbose
         self.isHeadless = isHeadless
         self.script_name = script_name
         self.mispghidra = mispghidra
 
-    def handle_events_selection(self, events: list[MISPEvent], ask_new=True) -> str:
+    def handle_events_selection(self, events: dict, ask_new=True) -> str:
 
         if self.isHeadless and len(events) == 0:
             raise Exception(
@@ -37,12 +37,12 @@ class PyMISPGhidraIOHandler:
             )
 
         if self.isHeadless and len(events) == 1:
-            return events[0].uuid
+            return events[0]["uuid"]
 
         if self.isHeadless and len(events) > 0:
-            logger.warning("Multiple events found, please choose one.")
-            for item in events:
-                logger.warning(f"{item.uuid}:{item.info}")
+            logger.warning("Multiple events found, please choose one among :")
+            for event in events:
+                logger.warning(f"   uuid : {event['uuid']}, info : {event['info']}")
             raise Exception(
                 "Multiple events found for program sha256, please choose one."
             )
@@ -53,11 +53,9 @@ class PyMISPGhidraIOHandler:
             if ask_new:
                 java_options.add("new")
 
-            print(ask_new,java_options)
-
             for event in events:
 
-                java_options.add(event.uuid + ":" + event.info)
+                java_options.add(f"{event['uuid']}:{event['info']}")
 
             choice = self.interpreter.askChoice(
                 "Found multiple events with program sha256, choose one to attach ghidra-functions objects: ",
@@ -79,17 +77,24 @@ class PyMISPGhidraIOHandler:
         if self.isHeadless and len(functions) > 0:
             logger.warning("Multiple functions found, please choose one.")
             for item in functions:
-                logger.warning(f"{item.getEntryPoint()}:{item.getName()}")
+                logger.warning(
+                    f"   entry : {item.getEntryPoint()} , function-name : {item.getName()}"
+                )
             raise Exception("Multiple functions found, please choose one.")
 
         if not self.isHeadless:
+
+            if len(functions) > GUI_ASK_CHOICE_LIMIT:
+
+                functions = functions[:GUI_ASK_CHOICE_LIMIT]
+
             java_options = ArrayList()
             for func in functions:
                 java_options.add(f"{func.getEntryPoint()}:{func.getName()}")
 
             if single_function:
                 choice = self.interpreter.askChoice(
-                    "Please select functions ",
+                    "Please select functions",
                     "Select Function",
                     java_options,
                     java_options.get(0),

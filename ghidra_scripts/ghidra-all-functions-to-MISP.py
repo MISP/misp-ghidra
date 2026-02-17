@@ -1,8 +1,9 @@
-# Select functions to add to MISP Event
+# All functions to MISP
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath Tools.MISP..Ghidra Functions.Others.Select functions to add to MISP Event
+# @menupath Tools.MISP.Ghidra Functions.All functions to MISP
+# @toolbar misp.png
 # @runtime PyGhidra
 
 import sys, os, importlib
@@ -131,8 +132,7 @@ if __name__ == "__main__":
     args = getScriptArgs()
     func_addresses = []
     event_uuid = None
-    all_functions = False
-    log_file = "/tmp/misp-ghidra.log"
+    all_functions = True
     call_tree = True
     new_event = False
 
@@ -142,10 +142,6 @@ if __name__ == "__main__":
             func_addresses.append(args[i + 1])
         elif args[i] == "--event-uuid" and i + 1 < len(args):
             event_uuid = args[i + 1]
-        elif args[i] == "--all-functions":
-            all_functions = True
-        elif args[i] == "--log-file" and i + 1 < len(args):
-            log_file = args[i + 1]
         elif args[i] == "--no-call-tree":
             call_tree = False
         elif args[i] == "--new-event":

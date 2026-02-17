@@ -37,29 +37,6 @@ class PyMISPGhidra:
         config_path="misp/config/config.toml",
         disableUrlWarning=True,
     ):
-
-        # Ghidra parameters
-        self.ghidraProgram = ghidraProgram
-
-        self.FIDservice = FidService()
-        self.interpreter = get_current_interpreter()
-
-        # Copied from BSIM script DumpBSimDebugSignaturesScript.py
-        # Probably a much cleaner way
-        # TODO add options and version of the decompiler to the exported object
-        self.decompiler = DecompInterface()
-
-        options = DecompileOptions()
-        self.decompiler.setOptions(options)
-        self.decompiler.toggleSyntaxTree(False)
-        self.decompiler.setSignatureSettings(0x4D)
-        if not self.decompiler.openProgram(self.ghidraProgram):
-            logger.error("Unable to initialize the Decompiler interface!")
-            logger.error("%s" % self.decompiler.getLastMessage())
-            raise Exception("Decompiler initialization failed")
-
-        self.language = self.ghidraProgram.getLanguage()
-
         # PyMISP parameters
         if disableUrlWarning:
             urllib3.disable_warnings(category=InsecureRequestWarning)
@@ -88,7 +65,35 @@ class PyMISPGhidra:
         ) as f:
             self.ghidra_function_template = json.load(f)
 
-    def get_existing_events(self, ghidraProgram=None) -> MISPEvent:
+        # Ghidra parameters
+
+        # Headless API test doesnt require ghidraProgram, just MISP API test.
+
+        if ghidraProgram == None:
+            return
+
+        self.ghidraProgram = ghidraProgram
+        self.FIDservice = FidService()
+        self.interpreter = get_current_interpreter()
+
+        # Copied from BSIM script DumpBSimDebugSignaturesScript.py
+        # Probably a much cleaner way
+        # TODO add options and version of the decompiler to the exported object
+        self.decompiler = DecompInterface()
+
+        options = DecompileOptions()
+        self.decompiler.setOptions(options)
+        self.decompiler.toggleSyntaxTree(False)
+        self.decompiler.setSignatureSettings(0x4D)
+
+        if not self.decompiler.openProgram(self.ghidraProgram):
+            logger.error("Unable to initialize the Decompiler interface!")
+            logger.error("%s" % self.decompiler.getLastMessage())
+            raise Exception("Decompiler initialization failed")
+
+        self.language = self.ghidraProgram.getLanguage()
+
+    def get_existing_events(self, ghidraProgram=None) -> dict:
         if ghidraProgram == None:
             ghidraProgram = self.ghidraProgram
 
@@ -108,11 +113,9 @@ class PyMISPGhidra:
                 event_id = attribute["Event"]["uuid"]
                 print(f"found:event:uuid:{event_id}")
 
-            # Pretty slow
-            events = [
-                self.misp.get_event(attribute["Event"]["uuid"], pythonify=True)
-                for attribute in attributes
-            ]
+            # This used to be Pretty slow #self.misp.get_event(attribute["Event"]["uuid"], pythonify=True),
+            # This uses the dict
+            events = [attribute["Event"] for attribute in attributes]
 
         except:
             pass
@@ -272,7 +275,11 @@ class PyMISPGhidra:
                             called_func
                         ].uuid
                         func_call_ref.comment = "Function call relation"
-                        self.misp.add_object_reference(func_call_ref, pythonify=True)
+                        ref_object = self.misp.add_object_reference(
+                            func_call_ref, pythonify=True
+                        )
+
+                        print(f"created:object-reference:uuid:{ref_object.uuid}")
                     except Exception as e:
                         logger.error(
                             f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}"

@@ -16,15 +16,24 @@ cp mispghidra/misp/config/config.template.toml mispghidra/misp/config/config.tom
 
 # GUI Usage
 
-Launch ghidra with PyGhidra `ghidra_12.0.2_PUBLIC/support/pyghidraRun`
+Launch ghidra with PyGhidra : `pyghidra -g`
 
-Add the `ghidra_scripts` directory to the Ghidra Bundle Manager
+Add the `ghidra_scripts` directory from this git repository to the Ghidra Bundle Manager
 
 The scripts are under the category `MISP`
 
 Run `test-MISP-API.py` to test the connection to the MISP instances API (configured in config.toml)
 
 # Headless Usage
+
+Check the [`/test/`](/test/) directory bash scripts for more examples.
+
+## API test
+
+```bash
+pyghidra ghidra_scripts/test-MISP-API.py
+```
+
 ## Add object to existing event in MISP
 ```bash
 pyghidra \
@@ -42,7 +51,7 @@ pyghidra \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-function-to-MISP.py \
-    --event-uuid "new" \
+    --new-event \
     --function-address ${FUNCTION_ADDRESS}
 ```
 
@@ -53,22 +62,21 @@ pyghidra -v \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-functions-to-MISP.py \
-    --event-uuid "new" \
+    --new-event \
     --all-functions
 ```
     
-# Example MISP usage
+# In MISP
 
-For a malware analysis, an event could contain objects : 
-
-	file | file
-	file | elf / pe
-	file | elf-section / pe-section / pe-optional-header
-    file | malware
-	ghidra | ghidra-program-metadata
+misp-ghidra creates by default the objects: 
+	file   | file
     ghidra | ghidra-function
 
-# MISP Correlation graph
+
+## Correlation graph on FID hashes
 
 <img src="img/correlation.png">
 
+## Function call tree graph
+
+<img src="img/function_call_graph.png">
