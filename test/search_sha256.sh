@@ -2,20 +2,10 @@
 source setup.sh
 
 # VARIABLES
-PROJECT_PATH="$(mktemp -d /tmp/ghidra-temp-project.XXXXXXXXX)"
+PROJECT_PATH="/tmp/test-projects/" #"$(mktemp -d /tmp/ghidra-temp-project.XXXXXXXXX)"
 PROJECT_NAME="temp_project"
 BINARY_PATH="test/bin/test_ssl.elf"
-EVENT_UUID_EXISTING="d5ad48bd-b027-4400-a564-dde16d0c883b"
-FUNCTION_ADDRESS="101189"
-
-echo "[+] Adding object to event"
-pyghidra \
-    --project-name ${PROJECT_NAME} \
-    --project-path ${PROJECT_PATH} \
-    ${BINARY_PATH} \
-    ghidra_scripts/ghidra-functions-to-MISP.py \
-    --event-uuid ${EVENT_UUID_EXISTING} \
-    --function-address ${FUNCTION_ADDRESS} \
+FUNCTION_ADDRESS="00105028"
 
 echo "[+] Adding object to new event"
 pyghidra \
@@ -23,34 +13,31 @@ pyghidra \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-functions-to-MISP.py \
-    --new-event \
     --function-address ${FUNCTION_ADDRESS} \
+    --new-event
 
-echo "[+] Adding multiple functions to an existing event"
+echo "[+] Adding object to exising event, will fail if there are more than one events with file"
 pyghidra \
     --project-name ${PROJECT_NAME} \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-functions-to-MISP.py \
-    --event-uuid ${EVENT_UUID_EXISTING} \
     --function-address ${FUNCTION_ADDRESS} \
-    --function-address 101100 \
 
-echo "[+] Adding multiple functions to new event"
+echo "[+] Adding multiple functions object to new event"
 pyghidra \
     --project-name ${PROJECT_NAME} \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-functions-to-MISP.py \
-    --new-event \
     --function-address ${FUNCTION_ADDRESS} \
-    --function-address 101100 \
-
-echo "[+] Add multiple functions to new event"
+    --all-functions \
+    --new-event
+    
+echo "[+] Adding object to exising event, will fail if there are more than one events with file"
 pyghidra \
     --project-name ${PROJECT_NAME} \
     --project-path ${PROJECT_PATH} \
     ${BINARY_PATH} \
     ghidra_scripts/ghidra-functions-to-MISP.py \
-    --new-event \
-    --all-functions
+    --function-address ${FUNCTION_ADDRESS} \

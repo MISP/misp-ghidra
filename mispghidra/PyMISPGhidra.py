@@ -6,6 +6,7 @@ import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 
 from pymisp import PyMISP, MISPObject, MISPEvent, MISPObjectReference
+from pymisp.tools import FileObject
 
 from ghidra.feature.fid.service import FidService
 from ghidra.util.task import ConsoleTaskMonitor
@@ -16,6 +17,7 @@ from java.lang import StringBuffer
 import ghidra.app.decompiler.DecompInterface as DecompInterface
 import ghidra.app.decompiler.DecompileOptions as DecompileOptions
 import ghidra.program.model.address.Address as Address
+import ghidra.program.model.listing.Function as Function
 
 global OBJECT_CREATION_LIMIT
 OBJECT_CREATION_LIMIT = 1000
@@ -86,7 +88,42 @@ class PyMISPGhidra:
         ) as f:
             self.ghidra_function_template = json.load(f)
 
-    def create_empty_event(self, title="Ghidra Exported Event"):
+    def get_existing_events(self, ghidraProgram=None) -> MISPEvent:
+        if ghidraProgram == None:
+            ghidraProgram = self.ghidraProgram
+
+        sha256 = ghidraProgram.getExecutableSHA256()
+
+        events = []
+
+        try:
+            search_result = self.misp.search(
+                controller="attributes", type="sha256", value=sha256
+            )
+            attributes = search_result["Attribute"]
+            if len(attributes) < 1:
+                raise Exception()
+
+            for attribute in attributes:
+                event_id = attribute["Event"]["uuid"]
+                print(f"found:event:uuid:{event_id}")
+
+            # Pretty slow
+            events = [
+                self.misp.get_event(attribute["Event"]["uuid"], pythonify=True)
+                for attribute in attributes
+            ]
+
+        except:
+            pass
+
+        return events
+
+    def create_empty_event(self, title="Ghidra Exported Event", ghidraProgram=None):
+
+        # Right now only support for one program per PyMISPGhidra
+        if ghidraProgram == None:
+            ghidraProgram = self.ghidraProgram
 
         event = MISPEvent()
 
@@ -97,9 +134,15 @@ class PyMISPGhidra:
 
         event = self.misp.add_event(event, pythonify=True)
 
+        path = ghidraProgram.getExecutablePath()
+
+        file_object = FileObject(path)
+
+        self.misp.add_object(event, file_object)
+
         logger.info("Created new event with name " + title)
 
-        print(f"event:uuid:{event.uuid}", file=sys.stdout)
+        print(f"created:event:uuid:{event.uuid}", file=sys.stdout)
 
         return event
 
@@ -147,7 +190,7 @@ class PyMISPGhidra:
         hashFunction = self.FIDservice.hashFunction(func)
 
         if hashFunction is None:
-            logger.error(f"Failed to hash function {name} at address {entry_point}. ")
+            logger.info(f"No hash function {name} at address {entry_point}. ")
             return ghidra_function
 
         fh_hex = hashFunction.fullHash
@@ -176,7 +219,7 @@ class PyMISPGhidra:
 
         obj = self._create_object_from_function(func)
         self.misp.add_object(event, obj)
-        print(f"ghidra-function:uuid:{obj.uuid}", file=sys.stdout)
+        print(f"created:ghidra-function:uuid:{obj.uuid}", file=sys.stdout)
 
     def create_call_tree_relations(
         self, event: MISPEvent, functions_objects_dict=None, limit=OBJECT_CREATION_LIMIT
@@ -259,7 +302,7 @@ class PyMISPGhidra:
                 result = self.misp.add_object(event, obj)
                 if result is None:
                     raise ValueError("Failed to add object to MISP")
-                print(f"ghidra-function:uuid:{obj.uuid}")
+                print(f"created:ghidra-function:uuid:{obj.uuid}")
                 functions_objects_dict[func] = obj
                 count += 1
             except Exception as e:
@@ -278,42 +321,6 @@ class PyMISPGhidra:
         if not call_tree:
             return count, fail_count, failed_object_creations
 
-        # Iterate on all functions in Ghidra, slow
-        # Call tree relations
-        # i = 0
-        # for func in functions:
-
-        #     if i >= limit:
-        #         break
-        #     if monitor.isCancelled():
-        #         break
-
-        #     # TODO objects relations for caller/callee
-
-        #     # Set <Function> getCalledFunctions
-        #     called_funcs = func.getCalledFunctions(monitor)
-        #     if called_funcs is not None:
-
-        #         for called_func in called_funcs:
-        #             if called_func == func:
-        #                 continue
-        #             if called_func not in functions_objects_dict:
-        #                 continue
-
-        #             try:
-        #                 func_obj = functions_objects_dict[func]
-        #                 func_call_ref = MISPObjectReference()
-        #                 func_call_ref.object_uuid = functions_objects_dict[called_func].uuid
-        #                 func_call_ref.relationship_type = "calls"
-        #                 func_call_ref.referenced_uuid = func_obj.uuid
-        #                 func_call_ref.comment = "Function call relation"
-        #                 self.misp.add_object_reference(func_call_ref,pythonify=True)
-        #             except Exception as e:
-        #                 print(f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}")
-        #                 continue
-        #     i += 1
-
-        # Iterqte only on the functions we created objects for, faster but misses relations with functions that were not exported
         self.create_call_tree_relations(
             event, limit=limit, functions_objects_dict=functions_objects_dict
         )
@@ -331,92 +338,3 @@ class PyMISPGhidra:
             raise ValueError(f"No function found at address {address}")
 
         return func
-
-    # def testrelations(self):
-    #     uuid = "21b67f59-3062-419a-9b72-7e97d54994ff"
-    #     event = self.misp.get_event(uuid, pythonify=True)
-
-    #     obj1 = event.objects[0]
-    #     obj2 = event.objects[1]
-    #     print(f"Object 1: {obj1.uuid}, Object 2: {obj2.uuid}")
-    #     obj_ref = MISPObjectReference()
-    #     obj_ref.    object_uuid = obj2.uuid
-    #     obj_ref.relationship_type = "calls"
-    #     obj_ref.referenced_uuid = obj1.uuid
-    #     obj_ref.comment = "Test relation"
-    #     ref = self.misp.add_object_reference(obj_ref,pythonify=True)
-
-
-# LEGACY
-# def add_object_to_event(self, event_id, fileobject):
-
-#     try:
-#         # Convert your fileobject to a dict compatible with MISP
-#         misp_obj_dict = fileobject.to_dict()
-#         # Create the object in MISP under the given event
-#         self.misp.add_object(event_id, misp_obj_dict)
-#         print(f"Added object to event {event_id}")
-#     except Exception as e:
-#         print(f"Failed to add object to event {event_id}: {e}")
-#         raise
-
-# def all_functions_to_MISP_object(self):
-
-#     with open(self.mispGhidraPath+'/misp/object-templates/ghidra-project/definition.json') as f:
-#         template = json.load(f)
-
-#     ghidra_project = MISPObject("ghidra-project",strict=True, misp_objects_template_custom=template)
-
-#     for func in self.ghidraProgram.getFunctionManager().getFunctions(True):
-
-#         name = func.getName()
-#         ghidra_project.add_attribute("function-name", name)
-
-#     return ghidra_project
-
-# def export_object_in_new_event(self,fileobject):
-#     print("Exporting...")
-#     event = self.create_empty_event("Ghidra Exported Event")
-#     event_uuid = event.uuid
-#     self.add_object_to_event(event.id, fileobject)
-#     print(f"Successfully uploaded object to new MISP {event_uuid}")
-
-#     return event
-
-# def fid_hash_event(self,event_name="Ghidra Exported FID hashes",limit=999):
-
-#     event = self.create_empty_event( f"Ghidra FID hahes from {self.ghidraProgram.getName()}")
-
-#     with open(self.mispGhidraPath+'/misp/object-templates/ghidra-function/definition.json') as f:
-#         template = json.load(f)
-
-#     i = 0
-#     for func in self.ghidraProgram.getFunctionManager().getFunctions(True):
-
-#         if i> limit: break
-
-#         if monitor.isCancelled(): break
-
-#         fid_object = MISPObject("ghidra-function",strict=True, misp_objects_template_custom=template)
-
-#         name = func.getName()
-#         fid_object.add_attribute("function-name", name)
-
-#         hashFunction = self.FIDservice.hashFunction(func)
-
-#         if hashFunction == None:
-#             print(f"Failed to hash {name} ")
-#             continue
-
-#         fh_hex = hashFunction.fullHash
-#         fx_hex = hashFunction.specificHash
-
-
-#         fid_object.add_attribute("fid-fh-hash", Long.toHexString(fh_hex))
-#         fid_object.add_attribute("fid-fx-hash", Long.toHexString(fx_hex))
-
-#         self.misp.add_object(event,fid_object)
-
-#         i +=1
-
-#     return event

@@ -1,5 +1,6 @@
 urllib3
 pymisp
+pymisp[fileobjects]
 toml
 tlsh
 pyghidra

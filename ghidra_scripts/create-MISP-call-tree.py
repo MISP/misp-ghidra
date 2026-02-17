@@ -45,12 +45,24 @@ def main(event_uuid=None, verbose=False):
     logger.info(f"    Event UUID: {event_uuid}")
     logger.info(f"    Verbose: {verbose}")
 
-    IOHandler = PyMISPGhidraIOHandler(
-        verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__)
-    )
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
+    IOHandler = PyMISPGhidraIOHandler(
+        mispGhidra,
+        verbose=verbose,
+        isHeadless=isHeadless,
+        script_name=os.path.basename(__file__),
+    )
+    if event_uuid == None:
+        # No UUID provided, use sha256 search
+        search_events = mispGhidra.get_existing_events()
 
-    event_uuid = IOHandler.handle_parameter(event_uuid, "event-uuid")
+        if search_events == None:
+            IOHandler.handle_exception_message(
+                "Couldn't find event in MISP with program sha256",
+                "Error retrieving event",
+            )
+
+        event_uuid = IOHandler.handle_events_selection(search_events, ask_new=False)
 
     try:
         event = mispGhidra.misp.get_event(event_uuid, pythonify=True)
@@ -83,21 +95,19 @@ if __name__ == "__main__":
         elif args[i] == "--log-file" and i + 1 < len(args):
             log_file = args[i + 1]
 
-    if not sys.stdin.isatty():
+    # if not sys.stdin.isatty():
 
-        input_data = sys.stdin.read().splitlines()
-        for line in input_data:
+    #     input_data = sys.stdin.read().splitlines()
+    #     for line in input_data:
 
-            parts = line.split(":")
-            if parts[0] == "event" and parts[1] == "uuid":
-                event_uuid = parts[2]
+    #         parts = line.split(":")
+    #         if parts[0] == "event" and parts[1] == "uuid":
+    #             event_uuid = parts[2]
 
-    for line in sys.stdin:
-        uuid = line.strip()
-        if not uuid:
-            continue
-
-        logging.critical(f"Ghidra is now processing ID: {uuid}")
+    # for line in sys.stdin:
+    #     uuid = line.strip()
+    #     if not uuid:
+    #         continue
 
     # logging.basicConfig(filename=log_file, level=logging.INFO,stream=sys.stderr)
 

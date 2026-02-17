@@ -38,6 +38,7 @@ def main(
     event_uuid=None,
     all_functions=False,
     call_tree=True,
+    new_event=False,
     verbose=False,
 ):
 
@@ -46,19 +47,19 @@ def main(
 
     isHeadless = interpreter.getState().getTool() is None
 
-    if not isHeadless:
-        all_functions = True
-
     logger.info(f"Running main {os.path.basename(__file__)} with arguments:")
     logger.info(f"    Function addresses: {func_addresses}")
     logger.info(f"    Event UUID: {event_uuid}")
     logger.info(f"    Verbose: {verbose}")
     logger.info(f"    All functions: {all_functions}")
 
-    IOHandler = PyMISPGhidraIOHandler(
-        verbose=verbose, isHeadless=isHeadless, script_name=os.path.basename(__file__)
-    )
     mispGhidra = PyMISPGhidra(interpreter.currentProgram)
+    IOHandler = PyMISPGhidraIOHandler(
+        mispGhidra,
+        verbose=verbose,
+        isHeadless=isHeadless,
+        script_name=os.path.basename(__file__),
+    )
 
     # If --all-functions is set, ignore provided function addresses and use all functions in the program
     if all_functions:
@@ -67,39 +68,51 @@ def main(
             func_addresses.append(func.getEntryPoint().toString())
 
     # Handle input parameters regardless of headless or GUI mode
-    for i, func_address in enumerate(func_addresses):
-
-        func_addresses[i] = IOHandler.handle_parameter(func_address, "function-address")
+    if func_addresses == None or func_addresses == []:
+        all_functions_addresses = list(
+            interpreter.currentProgram.getFunctionManager().getFunctions(True)
+        )
+        func_addresses = IOHandler.handle_functions_selections(
+            all_functions_addresses, single_function=False
+        )
 
     logger.info(f"Function addresses after handling parameters: {func_addresses}")
-    func_addresses = [interpreter.toAddr(addr) for addr in func_addresses]
     funcs = []
 
     # Check functions exist and retrieve them, handle exceptions if they don't
     for func_address in func_addresses:
         try:
-            func = interpreter.getFunctionAt(func_address)
+            func = interpreter.getFunctionContaining(interpreter.toAddr(func_address))
             funcs.append(func)
             if func is None:
                 raise ValueError(f"No function found at address {func_address}")
         except Exception as e:
             IOHandler.handle_exception_message(e, "Error retrieving function")
 
-    event_uuid = IOHandler.handle_parameter(event_uuid, "event-uuid")
+    if event_uuid == None and not new_event:
+        # No UUID provided, use sha256 search
+        search_events = mispGhidra.get_existing_events()
+        event_uuid = IOHandler.handle_events_selection(search_events,ask_new=True)
 
-    # handle new event creation if event_uuid is "new"
-    if event_uuid == "new":
+        # User selected new in the GUI
+        if event_uuid == "new":
+            new_event = True
+
+    if new_event:
         new_event_name = (
-            f"Ghidra Exported functions from {interpreter.currentProgram.getName()}"
+            f"Ghidra Exported Event from {interpreter.currentProgram.getName()}"
         )
         event = mispGhidra.create_empty_event(new_event_name)
     else:
-        try:
-            event = mispGhidra.misp.get_event(event_uuid, pythonify=True)
-            if event is None:
-                raise ValueError(f"No event found with uuid {event_uuid}")
-        except Exception as e:
-            IOHandler.handle_exception_message(e, "Error retrieving event")
+        event_uuid = IOHandler.handle_event_uuid(event_uuid)
+
+        if event_uuid != None:
+            try:
+                event = mispGhidra.misp.get_event(event_uuid, pythonify=True)
+                if event is None:
+                    raise ValueError(f"No event found with uuid {event_uuid}")
+            except Exception as e:
+                IOHandler.handle_exception_message(e, "Error retrieving event")
 
     mispGhidra.add_object_from_functions(funcs, event=event, call_tree=call_tree)
 
@@ -118,6 +131,7 @@ if __name__ == "__main__":
     all_functions = False
     log_file = "/tmp/misp-ghidra.log"
     call_tree = True
+    new_event = False
 
     # ['--event-uuid', '550e8400-e29b-41d4-a716-446655440000', '--function-address', '0010e3a0', '--function-address', '0010e3a0', '--verbose']
     for i in range(len(args)):
@@ -133,9 +147,8 @@ if __name__ == "__main__":
             log_file = args[i + 1]
         elif args[i] == "--no-call-tree":
             call_tree = False
-
-    if func_addresses == []:
-        func_addresses = [None]
+        elif args[i] == "--new-event":
+            new_event = True
 
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -147,6 +160,7 @@ if __name__ == "__main__":
         event_uuid=event_uuid,
         all_functions=all_functions,
         call_tree=call_tree,
+        new_event=new_event,
         verbose=verbose,
     )
 
