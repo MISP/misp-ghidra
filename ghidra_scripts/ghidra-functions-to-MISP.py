@@ -30,14 +30,25 @@ if __name__ == "__main__":
 
     # Args
     parser.add_argument(
-        "-a",
-        "--function-address", dest="func_addresses", action="append", default=[]
+        "-a", "--function-address", dest="func_addresses", action="append", default=[]
     )
     parser.add_argument("--event-uuid", type=str, default=None)
 
-    functions_types_choices=["imports","exports","thunks","defined"]
-    parser.add_argument("--ignore", dest="ignored_functions",action="append",default=[],choices=functions_types_choices)
-    parser.add_argument("--include", dest="included_functions",action="append",default=functions_types_choices,choices=functions_types_choices)
+    functions_types_choices = ["imports", "exports", "thunks", "defined"]
+    parser.add_argument(
+        "--ignore",
+        dest="ignored_functions",
+        action="append",
+        default=[],
+        choices=functions_types_choices,
+    )
+    parser.add_argument(
+        "--include",
+        dest="included_functions",
+        action="append",
+        default=functions_types_choices,
+        choices=functions_types_choices,
+    )
 
     # Flags
     parser.add_argument(
@@ -53,14 +64,31 @@ if __name__ == "__main__":
         action="store_true",
         help="Use all functions",
     )
-    parser.add_argument("-n","--new-event", dest="new_event",action="store_true", help="Create a new event")
-    
+    parser.add_argument(
+        "-n",
+        "--new-event",
+        dest="new_event",
+        action="store_true",
+        help="Create a new event",
+    )
+
     parser.add_argument(
         "-v",
         "--verbose",
         dest="verbose",
         help="increase output verbosity",
         action="store_true",
+    )
+
+    parser.add_argument(
+        "--name-include",
+        type=str,
+        help="Regex pattern: only export functions matching this (e.g., '^LAB_' or 'malware_')",
+    )
+    parser.add_argument(
+        "--name-exclude",
+        type=str,
+        help="Regex pattern: skip functions matching this (e.g., '^__libc|^_')",
     )
 
     # 3. Get Ghidra's arguments and parse them
@@ -79,8 +107,10 @@ if __name__ == "__main__":
         all_functions=args.all_functions,
         call_tree=args.call_tree,
         new_event=args.new_event,
-        ignored_functions =args.ignored_functions,
-        included_functions=args.included_functions
+        ignored_functions=args.ignored_functions,
+        included_functions=args.included_functions,
+        name_include=args.name_include,
+        name_exclude=args.name_exclude,
     )
 
     end = time.time()

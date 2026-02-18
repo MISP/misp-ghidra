@@ -11,16 +11,10 @@ SCRIPT="ghidra_scripts/ghidra-functions-to-MISP.py"
 
 echo "[+] Add multiple functions to new event"
 pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
-    -import "test/bin/test_ssl.elf" \
+    -import "test/bin/test_ssl_staticlink.elf" \
     -postScript "${SCRIPT}" \
     --new-event \
     --all-functions \
     --ignore thunks \
+    --name-exclude "^_|^abort|^plt" \
     -deleteProject
-
-echo "[+] Add multiple functions to new event"
-pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
-    -import "test/bin/test_ssl.elf" \
-    -postScript "${SCRIPT}" \
-    --new-event \
-    --all-functions 

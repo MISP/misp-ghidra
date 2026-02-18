@@ -1,7 +1,7 @@
 # Main components used by the GUI and Headless scripts
 # Rely on the PyMispGhidra and PyMispGhidraIOHandler
 
-import sys, os, importlib
+import sys, os, importlib, re
 
 from pymisp import MISPObject
 
@@ -40,7 +40,9 @@ def functions_to_misp(
     call_tree=True,
     new_event=False,
     ignored_functions=[],
-    included_functions=["imports","exports","thunks","defined"]
+    included_functions=["imports", "exports", "thunks", "defined"],
+    name_include=None,
+    name_exclude=None,
 ):
 
     isHeadless = state.getTool() is None
@@ -102,9 +104,11 @@ def functions_to_misp(
     logger.info(f"Function addresses after handling parameters: {func_addresses}")
     funcs = []
 
+    include_re = re.compile(name_include) if name_include else None
+    exclude_re = re.compile(name_exclude) if name_exclude else None
+
     # Check functions exist and retrieve them, handle exceptions if they don't
     for func_address in func_addresses:
-        
 
         try:
             func = (
@@ -113,7 +117,20 @@ def functions_to_misp(
                 .getFunctionContaining(interpreter.toAddr(func_address))
             )
 
+            # TODO make the function seleciton a specific function
+
             if "thunks" in ignored_functions and func.isThunk():
+                print("ignore", name)
+                continue
+            name = func.getName()
+            # 1. Exclusion Logic (Skip matches)
+            if exclude_re and exclude_re.search(name):
+                print("ignore regex", name)
+                continue
+
+            # 2. Inclusion Logic (Only keep matches)
+            if include_re and not include_re.search(name):
+                print("not included regex", name)
                 continue
 
             funcs.append(func)
