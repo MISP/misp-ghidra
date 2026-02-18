@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath Tools.MISP.Test connection to the MISP instance
+# @menupath MISP.Test connection to the MISP instance
 # @toolbar misp.png
 # @runtime PyGhidra
 
@@ -57,12 +57,12 @@ def get_misp_version():
 
 if __name__ == "__main__":
 
-    # log_file = "/tmp/misp-ghidra.log"
-    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-
     headless = getState().getTool() is None
+
     print(f"Running in headless mode: {headless}")
+
     IOhandler = PyMISPGhidraIOHandler(isHeadless=headless)
+
     try:
         version = get_misp_version()
         IOhandler.handle_message(f"Succesfully connected to MISP {version}")

@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath Tools.MISP.MISP configuration
+# @menupath MISP.MISP configuration
 # @toolbar conf.png
 # @runtime PyGhidra
 

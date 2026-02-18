@@ -20,11 +20,12 @@ class PyMISPGhidraIOHandler:
     def __init__(
         self,
         mispghidra=None,
+        interpreter=None,
         isHeadless=True,
         script_name="PyMISPGhidraScript",
     ):
 
-        self.interpreter = get_current_interpreter()
+        self.interpreter = interpreter
         self.isHeadless = isHeadless
         self.script_name = script_name
         self.mispghidra = mispghidra
@@ -125,45 +126,6 @@ class PyMISPGhidraIOHandler:
                 uuid = None
 
         return uuid
-
-    # TODO change this to handle_uuid,handle_address etc.
-    # def handle_parameter(self, param, param_type):
-
-    #     # Correct parameter, exit
-    #     if param is not None and param is not []:
-    #         return param
-
-    #     # Missing parameter
-    #     # In headless mode, log and raise an error
-    #     if self.isHeadless:
-    #         self.handle_exception_message(
-    #             ValueError(f"Missing parameter {param_type}"),
-    #             f"Error handling parameter {param_type}",
-    #         )
-
-    #     # In GUI, ask user for input
-    #     user_GUI_input_handles = {
-    #         "function-addresses": lambda: self.interpreter.currentAddress.toString(),
-    #         "function-address": lambda: self.interpreter.askAddress(
-    #             "Enter Function Address",
-    #             "Enter the address of the function to add to MISP (default is current address):",
-    #             self.interpreter.currentAddress.toString(),
-    #         ).toString(),
-    #     }
-
-    #     if param_type in user_GUI_input_handles:
-    #         try:
-    #             return user_GUI_input_handles[param_type]()
-    #         except Exception as e:
-    #             self.handle_exception_message(
-    #                 e, f"Error handling user input for parameter {param_type}"
-    #             )
-
-    #     # If param_type is not in user_GUI_input_handles, raise an error
-    #     self.handle_exception_message(
-    #         ValueError(f"Unknown parameter type {param_type}"),
-    #         f"Error handling parameter {param_type}",
-    #     )
 
     def handle_exception_message(self, e, message):
 

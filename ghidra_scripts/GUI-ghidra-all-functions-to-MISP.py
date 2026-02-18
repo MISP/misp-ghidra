@@ -1,12 +1,11 @@
-# Recreate call tree in MISP
+# All functions to MISP
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath MISP.Call Tree.Recreate call tree in MISP
+# @menupath MISP.Ghidra Functions.All functions to MISP
 # @toolbar misp.png
 # @runtime PyGhidra
 
-# TODO seperate GUI and Headless
 
 import time, logging, argparse, importlib, os, sys
 
@@ -27,15 +26,8 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    args_list = getScriptArgs()
-    parser = argparse.ArgumentParser(description="MISP Ghidra Integration Script")
-    parser.add_argument(
-        "--event-uuid", type=str, default=None, help="The MISP Event UUID"
-    )
-    args = parser.parse_args(args_list)
-
-    PyMISPGhidraScripts.create_call_tree(
-        state, get_current_interpreter(), args.event_uuid
+    PyMISPGhidraScripts.functions_to_misp(
+        state=state, interpreter=get_current_interpreter(), all_functions=True
     )
 
     end = time.time()

@@ -1,3 +1,7 @@
+Unpythonify all the code
+Fix user cancellation problem
+
+
 Object :
  - file and malware default MISP objects
  - ghidra-function

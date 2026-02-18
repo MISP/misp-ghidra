@@ -18,6 +18,7 @@ import ghidra.app.decompiler.DecompInterface as DecompInterface
 import ghidra.app.decompiler.DecompileOptions as DecompileOptions
 import ghidra.program.model.address.Address as Address
 import ghidra.program.model.listing.Function as Function
+from ghidra.app.decompiler.flatapi import FlatDecompilerAPI
 
 global OBJECT_CREATION_LIMIT
 OBJECT_CREATION_LIMIT = 1000
@@ -85,6 +86,7 @@ class PyMISPGhidra:
         self.decompiler.setOptions(options)
         self.decompiler.toggleSyntaxTree(False)
         self.decompiler.setSignatureSettings(0x4D)
+        self.interpreter.openProgram(self.ghidraProgram)
 
         if not self.decompiler.openProgram(self.ghidraProgram):
             logger.error("Unable to initialize the Decompiler interface!")
@@ -334,8 +336,10 @@ class PyMISPGhidra:
         return count, fail_count, failed_object_creations
 
     def dispose(self):
+        print("Disposing of program and decompiler")
         self.decompiler.closeProgram()
         self.decompiler.dispose()
+        self.interpreter.closeProgram(self.ghidraProgram)
 
     def get_function_at_address(self, address):
 

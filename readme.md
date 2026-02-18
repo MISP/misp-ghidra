@@ -28,40 +28,29 @@ Run `test-MISP-API.py` to test the connection to the MISP instances API (configu
 
 Check the [`/test/`](/test/) directory bash scripts for more examples.
 
-## API test
-
-```bash
-pyghidra ghidra_scripts/test-MISP-API.py
-```
-
 ## Add object to existing event in MISP
 ```bash
-pyghidra \
-    --project-name ${PROJECT_NAME} \
-    --project-path ${PROJECT_PATH} \
-    ${BINARY_PATH} \
-    ghidra_scripts/ghidra-function-to-MISP.py \
+pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
+    -import ${BINARY_PATH} \
+    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
     --event-uuid ${EVENT_UUID_EXISTING} \
     --function-address ${FUNCTION_ADDRESS}
 ```
 ## Add object to new event in MISP
 ```bash
 pyghidra \
-    --project-name ${PROJECT_NAME} \
-    --project-path ${PROJECT_PATH} \
-    ${BINARY_PATH} \
-    ghidra_scripts/ghidra-function-to-MISP.py \
+pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
+    -import ${BINARY_PATH} \
+    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
     --new-event \
     --function-address ${FUNCTION_ADDRESS}
 ```
 
 ## Add all functions as objects to an event
 ```bash
-pyghidra -v \
-    --project-name ${PROJECT_NAME} \
-    --project-path ${PROJECT_PATH} \
-    ${BINARY_PATH} \
-    ghidra_scripts/ghidra-functions-to-MISP.py \
+pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
+    -import ${BINARY_PATH} \
+    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
     --new-event \
     --all-functions
 ```
@@ -69,14 +58,19 @@ pyghidra -v \
 # In MISP
 
 misp-ghidra creates by default the objects: 
+```
 	file   | file
     ghidra | ghidra-function
-
+```
 
 ## Correlation graph on FID hashes
+
+Event correlation graph
 
 <img src="img/correlation.png">
 
 ## Function call tree graph
+
+Event graph
 
 <img src="img/function_call_graph.png">
