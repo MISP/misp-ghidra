@@ -39,6 +39,8 @@ def functions_to_misp(
     use_current_selection=False,
     call_tree=True,
     new_event=False,
+    ignored_functions=[],
+    included_functions=["imports","exports","thunks","defined"]
 ):
 
     isHeadless = state.getTool() is None
@@ -102,12 +104,18 @@ def functions_to_misp(
 
     # Check functions exist and retrieve them, handle exceptions if they don't
     for func_address in func_addresses:
+        
+
         try:
             func = (
                 state.getCurrentProgram()
                 .getFunctionManager()
                 .getFunctionContaining(interpreter.toAddr(func_address))
             )
+
+            if "thunks" in ignored_functions and func.isThunk():
+                continue
+
             funcs.append(func)
             if func is None:
                 raise ValueError(f"No function found at address {func_address}")

@@ -30,9 +30,14 @@ if __name__ == "__main__":
 
     # Args
     parser.add_argument(
+        "-a",
         "--function-address", dest="func_addresses", action="append", default=[]
     )
     parser.add_argument("--event-uuid", type=str, default=None)
+
+    functions_types_choices=["imports","exports","thunks","defined"]
+    parser.add_argument("--ignore", dest="ignored_functions",action="append",default=[],choices=functions_types_choices)
+    parser.add_argument("--include", dest="included_functions",action="append",default=functions_types_choices,choices=functions_types_choices)
 
     # Flags
     parser.add_argument(
@@ -42,12 +47,14 @@ if __name__ == "__main__":
         help="Disable call tree",
     )
     parser.add_argument(
+        "--all",
         "--all-functions",
         dest="all_functions",
         action="store_true",
         help="Use all functions",
     )
-    parser.add_argument("--new-event", action="store_true", help="Create a new event")
+    parser.add_argument("-n","--new-event", dest="new_event",action="store_true", help="Create a new event")
+    
     parser.add_argument(
         "-v",
         "--verbose",
@@ -72,6 +79,8 @@ if __name__ == "__main__":
         all_functions=args.all_functions,
         call_tree=args.call_tree,
         new_event=args.new_event,
+        ignored_functions =args.ignored_functions,
+        included_functions=args.included_functions
     )
 
     end = time.time()
