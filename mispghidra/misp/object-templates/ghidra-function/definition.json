@@ -13,17 +13,20 @@
     "decompiler-minor-version": {
       "description": "ghidra's decompiler (minor) version used to generate the FID and BSIM hashes.",
       "misp-attribute": "text",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "decompiler-major-version": {
       "description": "ghidra's decompiler (major) version used to generate the FID and BSIM hashes.",
       "misp-attribute": "text",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "entry-point": {
       "description": "function entry point address",
       "misp-attribute": "hex",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "instruction-count": {
       "description": "Instruction count",
@@ -59,6 +62,12 @@
       "description": "Ghidra decompiled function",
       "misp-attribute": "text",
       "ui-priority": 0
+    },
+    "function-signature": {
+      "description": "Function signature",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true
     }
   },
   "description": "ghidra function",

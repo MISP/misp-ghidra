@@ -30,7 +30,27 @@ class PyMISPGhidraIOHandler:
         self.script_name = script_name
         self.mispghidra = mispghidra
 
-    def handle_events_selection(self, events: dict, ask_new=True) -> str:
+    def handle_new_or_extend_event(self):
+        if self.isHeadless:
+            return None
+
+        options = ["new event", "extend existing event", "add to existing event"]
+
+        java_options = ArrayList()
+        for opt in options:
+            java_options.add(opt)
+
+        choice = self.interpreter.askChoice(
+            "Select action",
+            "Select an event type to add the ghidra-function objects",
+            java_options,
+            java_options[0],
+        )
+        return choice
+
+    def handle_events_selection(
+        self, events: dict, ask_new=False, ask_other=False
+    ) -> str:
 
         if self.isHeadless and len(events) == 0:
             raise Exception(
@@ -53,6 +73,9 @@ class PyMISPGhidraIOHandler:
 
             if ask_new:
                 java_options.add("new")
+
+            if ask_new:
+                java_options.add("other")
 
             for event in events:
 

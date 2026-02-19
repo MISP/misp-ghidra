@@ -91,6 +91,20 @@ if __name__ == "__main__":
         help="Regex pattern: skip functions matching this (e.g., '^__libc|^_')",
     )
 
+    parser.add_argument(
+        "--min-blocks",
+        type=int,
+        default=0,
+        help="Minimum of basic blocks for a function to be included",
+    )
+
+    parser.add_argument(
+        "--extend-event",
+        action="store_true",
+        default=False,
+        help="Extend the event with --event-uuid",
+    )
+
     # 3. Get Ghidra's arguments and parse them
     # Note: we pass getScriptArgs() specifically so argparse doesn't look at sys.argv
     args_list = getScriptArgs()
@@ -111,6 +125,8 @@ if __name__ == "__main__":
         included_functions=args.included_functions,
         name_include=args.name_include,
         name_exclude=args.name_exclude,
+        min_blocks=args.min_blocks,
+        extend_event=args.extend_event,
     )
 
     end = time.time()

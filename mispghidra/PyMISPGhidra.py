@@ -19,6 +19,7 @@ import ghidra.app.decompiler.DecompileOptions as DecompileOptions
 import ghidra.program.model.address.Address as Address
 import ghidra.program.model.listing.Function as Function
 from ghidra.app.decompiler.flatapi import FlatDecompilerAPI
+from ghidra.util.task import TaskMonitor
 
 global OBJECT_CREATION_LIMIT
 OBJECT_CREATION_LIMIT = 1000
@@ -111,31 +112,39 @@ class PyMISPGhidra:
             if len(attributes) < 1:
                 raise Exception()
 
-            for attribute in attributes:
-                event_id = attribute["Event"]["uuid"]
+            # Unique events
+            events = list(
+                {
+                    attr["Event"]["uuid"]: attr["Event"]
+                    for attr in attributes
+                    if "Event" in attr
+                }.values()
+            )
+            for event in events:
+                event_id = event["uuid"]
+
                 print(f"found:event:uuid:{event_id}")
-
-            # This used to be Pretty slow #self.misp.get_event(attribute["Event"]["uuid"], pythonify=True),
-            # This uses the dict
-            events = [attribute["Event"] for attribute in attributes]
-
         except:
             pass
 
         return events
 
-    def create_empty_event(self, title="Ghidra Exported Event", ghidraProgram=None):
+    def create_empty_event(
+        self, title="Ghidra Exported Event", ghidraProgram=None, extends_uuid=None
+    ):
 
         # Right now only support for one program per PyMISPGhidra
         if ghidraProgram == None:
             ghidraProgram = self.ghidraProgram
 
-        event = MISPEvent()
+        if extends_uuid:
+            event = MISPEvent(info=title, extends_uuid=extends_uuid)
+        else:
+            event = MISPEvent(info=title)
 
         # event.distribution = args.distrib
         # event.threat_level_id = args.threat
         # event.analysis = 0
-        event.info = title
 
         event = self.misp.add_event(event, pythonify=True)
 
@@ -229,110 +238,112 @@ class PyMISPGhidra:
     def create_call_tree_relations(
         self, event: MISPEvent, functions_objects_dict=None, limit=OBJECT_CREATION_LIMIT
     ):
-        """ "
-        functions_objects_dict : str function entry-point, MISPObject ghidra-function
         """
-        # Call tree relations
-
-        # Reload
-        event = self.misp.get_event(event.uuid, pythonify=True)
-
+        Optimized version: Adds references locally to objects and pushes once.
+        """
         if functions_objects_dict is None:
-            # Find all objects in the event and create a mapping of function name to object
+            # If we don't have the dict, we do need to fetch the event to map it
+            event = self.misp.get_event(event.uuid, pythonify=True)
             functions_objects_dict = {}
-            logger.info(
-                "Missing functions_objects_dict. Creating mapping of function names to MISP objects..."
-            )
-            # Search for "ghidra-function" objects in the event and map them to their corresponding function names
+            logger.info("Rebuilding mapping from fetched event...")
             for obj in event.get_objects_by_name("ghidra-function"):
-
-                if obj.name == "ghidra-function":
-                    entry_points = obj.get_attributes_by_relation("entry-point")
-                    for entry_point_attr in entry_points:
-                        entry_point = self.interpreter.toAddr(entry_point_attr.value)
-                        ghidra_function = self.interpreter.getFunctionAt(entry_point)
-                        functions_objects_dict[ghidra_function] = obj
+                entry_attr = obj.get_attributes_by_relation("entry-point")
+                if entry_attr:
+                    addr = self.interpreter.toAddr(entry_attr[0].value)
+                    ghidra_func = self.interpreter.getFunctionAt(addr)
+                    functions_objects_dict[ghidra_func] = obj
 
         i = 0
-        for func in functions_objects_dict.keys():
-            if i >= limit:
-                break
-            if monitor.isCancelled():
+        ref_count = 0
+        for func, func_obj in functions_objects_dict.items():
+            if i >= limit or monitor.isCancelled():
                 break
 
             called_funcs = func.getCalledFunctions(monitor)
-            if called_funcs is not None:
+            if not called_funcs:
+                i += 1
+                continue
 
-                for called_func in called_funcs:
-
-                    if called_func not in functions_objects_dict:
-                        continue
-
+            for called_func in called_funcs:
+                # Only create a relation if both functions exist in our MISP event
+                if called_func in functions_objects_dict:
                     try:
-                        func_obj = functions_objects_dict[func]
-                        func_call_ref = MISPObjectReference()
-                        func_call_ref.object_uuid = func_obj.uuid
-                        func_call_ref.relationship_type = "calls"
-                        func_call_ref.referenced_uuid = functions_objects_dict[
-                            called_func
-                        ].uuid
-                        func_call_ref.comment = "Function call relation"
-                        ref_object = self.misp.add_object_reference(
-                            func_call_ref, pythonify=True
-                        )
+                        target_obj = functions_objects_dict[called_func]
 
-                        print(f"created:object-reference:uuid:{ref_object.uuid}")
+                        # Create the reference locally on the object
+                        # PyMISP objects have an 'add_reference' method
+                        func_obj.add_reference(
+                            referenced_uuid=target_obj.uuid,
+                            relationship_type="calls",
+                            comment="Function call relation",
+                        )
+                        ref_count += 1
                     except Exception as e:
                         logger.error(
-                            f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}"
+                            f"Local ref failed: {func.getName()} -> {called_func.getName()}: {e}"
                         )
-                        continue
             i += 1
+
+        # Final Step: Push the updated event structure with all new references
+        if ref_count > 0:
+            logger.info(f"Pushing {ref_count} call-tree relations to MISP...")
+            self.misp.update_event(event)
+
+        return
 
     def add_object_from_functions(
         self, functions, event, call_tree=True, limit=OBJECT_CREATION_LIMIT
     ):
-
         functions_objects_dict = {}
-
         failed_object_creations = []
-        # Add objects for each function
+
         count = 0
         fail_count = 0
-        i = 0
+
+        # Load your local template once to prevent MISPObject from searching for it
+        # This keeps the convenience of MISPObject without the 403/Template errors
+        template_path = "path/to/your/ghidra-function.json"
+
         for func in functions:
-            if count >= limit:
-                break
-            if monitor.isCancelled():
+            if count >= limit or monitor.isCancelled():
                 break
 
             try:
+                # Step 1: Create the object locally (No API call yet)
                 obj = self._create_object_from_function(func)
-                result = self.misp.add_object(event, obj)
-                if result is None:
-                    raise ValueError("Failed to add object to MISP")
-                print(f"created:ghidra-function:uuid:{obj.uuid}")
+
+                # Step 2: Add to the local event object (Memory only, very fast)
+                # This handles the 'pythonify' logic locally
+                event.add_object(obj)
+
                 functions_objects_dict[func] = obj
                 count += 1
+
+                if count % 50 == 0:
+                    print(f"Prepared {count} functions locally...")
+
             except Exception as e:
-                logger.error(
-                    f"Failed to create object for function {func.getName()}: {e}"
-                )
+                logger.error(f"Failed to prepare object for {func.getName()}: {e}")
                 failed_object_creations.append(func.getName())
                 fail_count += 1
-            finally:
-                i += 1
 
-        logger.info(
-            f"Successfully created {count} objects for functions. Failed to create {fail_count} objects. Now processing call tree relations..."
-        )
+        # Step 3: PUSH EVERYTHING AT ONCE
+        # This is the 'pythonify=False' equivalent for performance
+        try:
+            logger.info(f"Pushing {count} objects to MISP server in one go...")
+            self.misp.update_event(event)
+        except Exception as e:
+            logger.error(f"Bulk push failed: {e}")
 
-        if not call_tree:
-            return count, fail_count, failed_object_creations
+        # Step 4: Call Tree Relations
+        if call_tree:
+            logger.info("Processing call tree relations...")
+            self.create_call_tree_relations(
+                event, limit=limit, functions_objects_dict=functions_objects_dict
+            )
+            # Update again after adding relations
+            self.misp.update_event(event)
 
-        self.create_call_tree_relations(
-            event, limit=limit, functions_objects_dict=functions_objects_dict
-        )
         return count, fail_count, failed_object_creations
 
     def dispose(self):
@@ -349,3 +360,113 @@ class PyMISPGhidra:
             raise ValueError(f"No function found at address {address}")
 
         return func
+
+    # def create_call_tree_relations_legacy(
+    #     self, event: MISPEvent, functions_objects_dict=None, limit=OBJECT_CREATION_LIMIT
+    # ):
+    #     """ "
+    #     functions_objects_dict : str function entry-point, MISPObject ghidra-function
+    #     """
+    #     # Call tree relations
+
+    #     # Reload
+    #     event = self.misp.get_event(event.uuid, pythonify=True)
+
+    #     if functions_objects_dict is None:
+    #         # Find all objects in the event and create a mapping of function name to object
+    #         functions_objects_dict = {}
+    #         logger.info(
+    #             "Missing functions_objects_dict. Creating mapping of function names to MISP objects..."
+    #         )
+    #         # Search for "ghidra-function" objects in the event and map them to their corresponding function names
+    #         for obj in event.get_objects_by_name("ghidra-function"):
+
+    #             if obj.name == "ghidra-function":
+    #                 entry_points = obj.get_attributes_by_relation("entry-point")
+    #                 for entry_point_attr in entry_points:
+    #                     entry_point = self.interpreter.toAddr(entry_point_attr.value)
+    #                     ghidra_function = self.interpreter.getFunctionAt(entry_point)
+    #                     functions_objects_dict[ghidra_function] = obj
+
+    #     i = 0
+    #     for func in functions_objects_dict.keys():
+    #         if i >= limit:
+    #             break
+    #         if monitor.isCancelled():
+    #             break
+
+    #         called_funcs = func.getCalledFunctions(monitor)
+    #         if called_funcs is not None:
+
+    #             for called_func in called_funcs:
+
+    #                 if called_func not in functions_objects_dict:
+    #                     continue
+
+    #                 try:
+    #                     func_obj = functions_objects_dict[func]
+    #                     func_call_ref = MISPObjectReference()
+    #                     func_call_ref.object_uuid = func_obj.uuid
+    #                     func_call_ref.relationship_type = "calls"
+    #                     func_call_ref.referenced_uuid = functions_objects_dict[
+    #                         called_func
+    #                     ].uuid
+    #                     func_call_ref.comment = "Function call relation"
+    #                     ref_object = self.misp.add_object_reference(
+    #                         func_call_ref, pythonify=True
+    #                     )
+
+    #                     print(f"created:object-reference:uuid:{ref_object.uuid}")
+    #                 except Exception as e:
+    #                     logger.error(
+    #                         f"Failed to add relation between {func.getName()} and {called_func.getName()}: {e}"
+    #                     )
+    #                     continue
+    #         i += 1
+
+
+# def add_object_from_functions_legacy(
+#         self, functions, event, call_tree=True, limit=OBJECT_CREATION_LIMIT
+#     ):
+
+#         functions_objects_dict = {}
+
+#         failed_object_creations = []
+#         # Add objects for each function
+#         count = 0
+#         fail_count = 0
+#         i = 0
+#         for func in functions:
+#             if count >= limit:
+#                 break
+#             if monitor.isCancelled():
+#                 break
+
+#             try:
+#                 obj = self._create_object_from_function(func)
+#                 result = self.misp.add_object(event, obj)
+#                 if result is None:
+#                     raise ValueError("Failed to add object to MISP")
+#                 print(f"created:ghidra-function:uuid:{obj.uuid}")
+#                 functions_objects_dict[func] = obj
+#                 count += 1
+#             except Exception as e:
+#                 logger.error(
+#                     f"Failed to create object for function {func.getName()}: {e}"
+#                 )
+#                 failed_object_creations.append(func.getName())
+#                 fail_count += 1
+#             finally:
+#                 i += 1
+
+#         logger.info(
+#             f"Successfully created {count} objects for functions. Failed to create {fail_count} objects. Now processing call tree relations..."
+#         )
+
+#         if not call_tree:
+#             return count, fail_count, failed_object_creations
+
+#         self.create_call_tree_relations(
+#             event, limit=limit, functions_objects_dict=functions_objects_dict
+#         )
+#         return count, fail_count, failed_object_creations

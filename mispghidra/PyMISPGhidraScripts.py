@@ -23,6 +23,8 @@ from mispghidra.PyMISPGhidra import PyMISPGhidra
 from mispghidra.PyMISPGhidraIOHandler import PyMISPGhidraIOHandler
 
 from ghidra.program.flatapi import FlatProgramAPI
+from ghidra.program.model.block import BasicBlockModel
+from ghidra.util.task import TaskMonitor
 
 import time, logging
 
@@ -43,6 +45,8 @@ def functions_to_misp(
     included_functions=["imports", "exports", "thunks", "defined"],
     name_include=None,
     name_exclude=None,
+    min_blocks=0,
+    extend_event=False,
 ):
 
     isHeadless = state.getTool() is None
@@ -107,6 +111,8 @@ def functions_to_misp(
     include_re = re.compile(name_include) if name_include else None
     exclude_re = re.compile(name_exclude) if name_exclude else None
 
+    blockModel = BasicBlockModel(selectedProgram)
+
     # Check functions exist and retrieve them, handle exceptions if they don't
     for func_address in func_addresses:
 
@@ -117,10 +123,13 @@ def functions_to_misp(
                 .getFunctionContaining(interpreter.toAddr(func_address))
             )
 
+            if func is None:
+                print(f"No function found at address {func_address}")
+                continue
             # TODO make the function seleciton a specific function
 
             if "thunks" in ignored_functions and func.isThunk():
-                print("ignore", name)
+                print("ignore thunked", name)
                 continue
             name = func.getName()
             # 1. Exclusion Logic (Skip matches)
@@ -133,21 +142,46 @@ def functions_to_misp(
                 print("not included regex", name)
                 continue
 
+            # Small functions exclusion, based on min blocks
+            blocks = blockModel.getCodeBlocksContaining(func.getBody(), None)
+            count = 0
+            while blocks.hasNext():
+                blocks.next()
+                count += 1
+
+            if count < min_blocks:
+
+                print("Ignored small func", name, count)
+
             funcs.append(func)
-            if func is None:
-                raise ValueError(f"No function found at address {func_address}")
+
         except Exception as e:
             IOHandler.handle_exception_message(e, "Error retrieving function")
+
+    if not extend_event and not new_event and event_uuid == None:
+
+        action_type = IOHandler.handle_new_or_extend_event()
+
+        if action_type == "new event":
+            new_event = True
+        elif action_type == "extend existing event":
+            extend_event = True
 
     if event_uuid == None and not new_event:
         # No UUID provided, use sha256 search
         search_events = mispGhidra.get_existing_events()
-        event_uuid = IOHandler.handle_events_selection(search_events, ask_new=True)
+        event_uuid = IOHandler.handle_events_selection(
+            search_events, ask_new=True, ask_other=True
+        )
 
         # User selected new in the GUI
         if event_uuid == "new":
             new_event = True
 
+        if event_uuid == "other":
+            event_uuid = interpreter.askString(
+                "Provide event UUID", "Provide event UUID"
+            )
     if new_event:
         new_event_name = f"Ghidra Exported Event from {state.currentProgram.getName()}"
         event = mispGhidra.create_empty_event(new_event_name)
@@ -161,6 +195,15 @@ def functions_to_misp(
                     raise ValueError(f"No event found with uuid {event_uuid}")
             except Exception as e:
                 IOHandler.handle_exception_message(e, "Error retrieving event")
+
+        if extend_event:
+
+            new_event_name = (
+                f"Extended Ghidra Exported Event from {state.currentProgram.getName()}"
+            )
+            event = mispGhidra.create_empty_event(
+                new_event_name, extends_uuid=event.uuid
+            )
 
     mispGhidra.add_object_from_functions(funcs, event=event, call_tree=call_tree)
 
