@@ -120,7 +120,7 @@ def functions_to_misp(
             func = (
                 state.getCurrentProgram()
                 .getFunctionManager()
-                .getFunctionContaining(interpreter.toAddr(func_address))
+                .getFunctionContaining(FlatProgramAPI(state.getCurrentProgram()).toAddr(func_address))
             )
 
             if func is None:

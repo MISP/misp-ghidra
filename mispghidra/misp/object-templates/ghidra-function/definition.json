@@ -3,22 +3,24 @@
     "function-name":{
       "description": "function name",
       "misp-attribute": "text",
-      "ui-priority": 1
+      "ui-priority": 1,
+      "disable_correlation": true
     },
     "external-library": {
       "description": "external library name if the function is an external",
       "misp-attribute": "text",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "decompiler-minor-version": {
       "description": "ghidra's decompiler (minor) version used to generate the FID and BSIM hashes.",
-      "misp-attribute": "text",
+      "misp-attribute": "integer",
       "ui-priority": 0,
       "disable_correlation": true
     },
     "decompiler-major-version": {
       "description": "ghidra's decompiler (major) version used to generate the FID and BSIM hashes.",
-      "misp-attribute": "text",
+      "misp-attribute": "integer",
       "ui-priority": 0,
       "disable_correlation": true
     },
@@ -31,7 +33,8 @@
     "instruction-count": {
       "description": "Instruction count",
       "misp-attribute": "integer",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "bsim-vector": {
       "description": "comma separated BSIM Feature Vector",
@@ -61,7 +64,8 @@
     "decompiled-function": {
       "description": "Ghidra decompiled function",
       "misp-attribute": "text",
-      "ui-priority": 0
+      "ui-priority": 0,
+      "disable_correlation": true
     },
     "function-signature": {
       "description": "Function signature",
