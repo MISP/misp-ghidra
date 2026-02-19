@@ -30,7 +30,10 @@ if __name__ == "__main__":
     currentAddr = [currentAddress.toString()]
 
     PyMISPGhidraScripts.functions_to_misp(
-        state=state, interpreter=get_current_interpreter(), func_addresses=currentAddr
+        state=state,
+        interpreter=get_current_interpreter(),
+        monitor=monitor,
+        func_addresses=currentAddr,
     )
 
     end = time.time()

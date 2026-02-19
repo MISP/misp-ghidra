@@ -116,6 +116,7 @@ if __name__ == "__main__":
     PyMISPGhidraScripts.functions_to_misp(
         state=state,
         interpreter=get_current_interpreter(),
+        monitor=monitor,
         func_addresses=args.func_addresses,
         event_uuid=args.event_uuid,
         all_functions=args.all_functions,

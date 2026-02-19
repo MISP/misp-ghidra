@@ -21,11 +21,13 @@ class PyMISPGhidraIOHandler:
         self,
         mispghidra=None,
         interpreter=None,
+        monitor=None,
         isHeadless=True,
         script_name="PyMISPGhidraScript",
     ):
 
         self.interpreter = interpreter
+        self.monitor = monitor
         self.isHeadless = isHeadless
         self.script_name = script_name
         self.mispghidra = mispghidra

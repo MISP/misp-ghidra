@@ -27,7 +27,10 @@ if __name__ == "__main__":
     start = time.time()
 
     PyMISPGhidraScripts.functions_to_misp(
-        state=state, interpreter=get_current_interpreter(), use_current_selection=True
+        state=state,
+        interpreter=get_current_interpreter(),
+        monitor=monitor,
+        use_current_selection=True,
     )
 
     end = time.time()

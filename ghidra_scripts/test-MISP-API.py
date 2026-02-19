@@ -29,13 +29,15 @@ importlib.reload(mispghidra.PyMISPGhidra)
 from mispghidra.PyMISPGhidra import PyMISPGhidra
 from mispghidra.PyMISPGhidraIOHandler import PyMISPGhidraIOHandler
 
+from pyghidra import get_current_interpreter
+
 import time, datetime, logging
 
 logger = logging.getLogger(__name__)
 
 
 def add_test_event():
-    mispGhidra = PyMISPGhidra(currentProgram)
+    mispGhidra = PyMISPGhidra(currentProgram, get_current_interpreter(), monitor)
 
     event = {
         "info": "Test Event from Python",
@@ -49,7 +51,7 @@ def add_test_event():
 
 def get_misp_version():
 
-    mispGhidra = PyMISPGhidra(None)
+    mispGhidra = PyMISPGhidra(None, interpreter=None, monitor=None)
     version = mispGhidra.misp.version["version"]
 
     return version
@@ -61,10 +63,12 @@ if __name__ == "__main__":
 
     print(f"Running in headless mode: {headless}")
 
-    IOhandler = PyMISPGhidraIOHandler(isHeadless=headless)
+    IOhandler = PyMISPGhidraIOHandler(
+        isHeadless=headless, interpreter=get_current_interpreter()
+    )
 
     try:
         version = get_misp_version()
         IOhandler.handle_message(f"Succesfully connected to MISP {version}")
     except Exception as e:
-        IOhandler.handle_exception_message("Couldn't connect")
+        IOhandler.handle_exception_message(Exception(), "Couldn't connect")

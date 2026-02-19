@@ -35,7 +35,7 @@ if __name__ == "__main__":
     args = parser.parse_args(args_list)
 
     PyMISPGhidraScripts.create_call_tree(
-        state, get_current_interpreter(), args.event_uuid
+        state, get_current_interpreter(), monitor, args.event_uuid
     )
 
     end = time.time()

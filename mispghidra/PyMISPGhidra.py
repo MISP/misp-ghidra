@@ -9,7 +9,6 @@ from pymisp import PyMISP, MISPObject, MISPEvent, MISPObjectReference
 from pymisp.tools import FileObject
 
 from ghidra.feature.fid.service import FidService
-from ghidra.util.task import ConsoleTaskMonitor
 
 from java.lang import Long
 from java.lang import StringBuffer
@@ -19,16 +18,13 @@ import ghidra.app.decompiler.DecompileOptions as DecompileOptions
 import ghidra.program.model.address.Address as Address
 import ghidra.program.model.listing.Function as Function
 from ghidra.app.decompiler.flatapi import FlatDecompilerAPI
-from ghidra.util.task import TaskMonitor
 
 global OBJECT_CREATION_LIMIT
-OBJECT_CREATION_LIMIT = 1000
+OBJECT_CREATION_LIMIT = 100000
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-monitor = ConsoleTaskMonitor()
 
 
 class PyMISPGhidra:
@@ -36,9 +32,13 @@ class PyMISPGhidra:
     def __init__(
         self,
         ghidraProgram,
+        interpreter,
+        monitor,
         config_path="misp/config/config.toml",
         disableUrlWarning=True,
     ):
+        self.monitor = monitor
+
         # PyMISP parameters
         if disableUrlWarning:
             urllib3.disable_warnings(category=InsecureRequestWarning)
@@ -76,7 +76,7 @@ class PyMISPGhidra:
 
         self.ghidraProgram = ghidraProgram
         self.FIDservice = FidService()
-        self.interpreter = get_current_interpreter()
+        self.interpreter = interpreter
 
         # Copied from BSIM script DumpBSimDebugSignaturesScript.py
         # Probably a much cleaner way
@@ -87,7 +87,6 @@ class PyMISPGhidra:
         self.decompiler.setOptions(options)
         self.decompiler.toggleSyntaxTree(False)
         self.decompiler.setSignatureSettings(0x4D)
-        self.interpreter.openProgram(self.ghidraProgram)
 
         if not self.decompiler.openProgram(self.ghidraProgram):
             logger.error("Unable to initialize the Decompiler interface!")
@@ -106,7 +105,7 @@ class PyMISPGhidra:
 
         try:
             search_result = self.misp.search(
-                controller="attributes", type="sha256", value=sha256
+                controller="attributes", type_attribute="sha256", value=sha256
             )
             attributes = search_result["Attribute"]
             if len(attributes) < 1:
@@ -241,25 +240,39 @@ class PyMISPGhidra:
         """
         Optimized version: Adds references locally to objects and pushes once.
         """
+        self.monitor.setMessage(f"Fetching existing objects from MISP")
+
         if functions_objects_dict is None:
             # If we don't have the dict, we do need to fetch the event to map it
             event = self.misp.get_event(event.uuid, pythonify=True)
             functions_objects_dict = {}
             logger.info("Rebuilding mapping from fetched event...")
             for obj in event.get_objects_by_name("ghidra-function"):
+                if self.monitor.isCancelled():
+                    exit()
                 entry_attr = obj.get_attributes_by_relation("entry-point")
                 if entry_attr:
                     addr = self.interpreter.toAddr(entry_attr[0].value)
                     ghidra_func = self.interpreter.getFunctionAt(addr)
                     functions_objects_dict[ghidra_func] = obj
 
+        self.monitor.initialize(
+            len(functions_objects_dict), f"Building call tree in MISP..."
+        )
+        self.monitor.setProgress(0)
+
         i = 0
         ref_count = 0
         for func, func_obj in functions_objects_dict.items():
-            if i >= limit or monitor.isCancelled():
+            if i >= limit:
                 break
 
-            called_funcs = func.getCalledFunctions(monitor)
+            if self.monitor.isCancelled():
+                exit()
+
+            self.monitor.setProgress(i)
+
+            called_funcs = func.getCalledFunctions(self.monitor)
             if not called_funcs:
                 i += 1
                 continue
@@ -286,6 +299,10 @@ class PyMISPGhidra:
 
         # Final Step: Push the updated event structure with all new references
         if ref_count > 0:
+            self.monitor.setIndeterminate(True)
+            self.monitor.setMessage(
+                f"Pushing {ref_count} call-tree relations to MISP..."
+            )
             logger.info(f"Pushing {ref_count} call-tree relations to MISP...")
             self.misp.update_event(event)
 
@@ -300,42 +317,47 @@ class PyMISPGhidra:
         count = 0
         fail_count = 0
 
-        # Load your local template once to prevent MISPObject from searching for it
-        # This keeps the convenience of MISPObject without the 403/Template errors
-        template_path = "path/to/your/ghidra-function.json"
-
+        if functions is not None:
+            self.monitor.setMessage(
+                f"Adding ghidra-functions objects to event {event.uuid}"
+            )
+            self.monitor.initialize(len(functions))
+            self.monitor.setProgress(0)
         for func in functions:
-            if count >= limit or monitor.isCancelled():
+            if count >= limit:
                 break
 
+            if self.monitor.isCancelled():
+                exit()
+            if count % 50 == 0:
+                print(f"Prepared {count} functions locally...")
+                self.monitor.setProgress(count)
+
             try:
-                # Step 1: Create the object locally (No API call yet)
+                # Step 1: Create the objects locally
                 obj = self._create_object_from_function(func)
 
-                # Step 2: Add to the local event object (Memory only, very fast)
-                # This handles the 'pythonify' logic locally
                 event.add_object(obj)
 
                 functions_objects_dict[func] = obj
                 count += 1
-
-                if count % 50 == 0:
-                    print(f"Prepared {count} functions locally...")
 
             except Exception as e:
                 logger.error(f"Failed to prepare object for {func.getName()}: {e}")
                 failed_object_creations.append(func.getName())
                 fail_count += 1
 
-        # Step 3: PUSH EVERYTHING AT ONCE
-        # This is the 'pythonify=False' equivalent for performance
+        self.monitor.setIndeterminate(True)
+
+        # Step 2: Push to MISP
         try:
-            logger.info(f"Pushing {count} objects to MISP server in one go...")
+            self.monitor.setMessage(f"Pushing {count} objects to MISP...")
+            logger.info(f"Pushing {count} objects to MISP...")
             self.misp.update_event(event)
         except Exception as e:
             logger.error(f"Bulk push failed: {e}")
 
-        # Step 4: Call Tree Relations
+        # Call Tree Relations
         if call_tree:
             logger.info("Processing call tree relations...")
             self.create_call_tree_relations(
@@ -350,7 +372,6 @@ class PyMISPGhidra:
         print("Disposing of program and decompiler")
         self.decompiler.closeProgram()
         self.decompiler.dispose()
-        self.interpreter.closeProgram(self.ghidraProgram)
 
     def get_function_at_address(self, address):
 

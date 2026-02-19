@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 def functions_to_misp(
     state,
     interpreter,
+    monitor,
     func_addresses=None,
     event_uuid=None,
     all_functions=False,
@@ -68,10 +69,11 @@ def functions_to_misp(
 
     logger.info("=" * 60)
 
-    mispGhidra = PyMISPGhidra(selectedProgram)
+    mispGhidra = PyMISPGhidra(selectedProgram, interpreter, monitor)
     IOHandler = PyMISPGhidraIOHandler(
-        mispGhidra,
+        mispghidra=mispGhidra,
         interpreter=interpreter,
+        monitor=monitor,
         isHeadless=isHeadless,
         script_name=os.path.basename(__file__),
     )
@@ -79,7 +81,10 @@ def functions_to_misp(
     # If --all-functions is set, ignore provided function addresses and use all functions in the program
     if all_functions:
         func_addresses = []
+        monitor.setMessage(f"Fetching all functions addresses from Ghidra")
         for func in selectedProgram.getFunctionManager().getFunctions(True):
+            if monitor.isCancelled():
+                exit()
             func_addresses.append(func.getEntryPoint().toString())
 
     elif use_current_selection:
@@ -114,13 +119,18 @@ def functions_to_misp(
     blockModel = BasicBlockModel(selectedProgram)
 
     # Check functions exist and retrieve them, handle exceptions if they don't
+    monitor.setMessage(f"Applying function filters...")
     for func_address in func_addresses:
 
+        if monitor.isCancelled():
+            exit()
         try:
             func = (
                 state.getCurrentProgram()
                 .getFunctionManager()
-                .getFunctionContaining(FlatProgramAPI(state.getCurrentProgram()).toAddr(func_address))
+                .getFunctionContaining(
+                    FlatProgramAPI(state.getCurrentProgram()).toAddr(func_address)
+                )
             )
 
             if func is None:
@@ -212,20 +222,21 @@ def functions_to_misp(
     )
 
 
-def create_call_tree(state, interpreter, event_uuid=None):
+def create_call_tree(state, interpreter, monitor, event_uuid=None):
 
     # IO Handler regardless of headless or GUI mode
-
+    selectedProgram = state.getCurrentProgram()
     isHeadless = interpreter.getState().getTool() is None
 
     logger.info(f"Running main {os.path.basename(__file__)} with parameters:")
     logger.info(f"    Event UUID: {event_uuid}")
 
     # Boilerplate
-    mispGhidra = PyMISPGhidra(state.getCurrentProgram())
+    mispGhidra = PyMISPGhidra(selectedProgram, interpreter, monitor)
     IOHandler = PyMISPGhidraIOHandler(
-        mispGhidra,
-        interpreter,
+        mispghidra=mispGhidra,
+        interpreter=interpreter,
+        monitor=monitor,
         isHeadless=isHeadless,
         script_name=os.path.basename(__file__),
     )
