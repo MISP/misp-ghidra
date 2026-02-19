@@ -1,12 +1,16 @@
+MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
+
 This is a work in progress.
 
-MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
+# Requirements
+
+Ghidra 12.0.2 with PyGhidra and BSIM plugin activated
 
 # Installation
 
-install requirements with your pyghidra venv
+Install requirements with your pyghidra venv
 ```bash
-~/.config/ghidra/ghidra_12.0.2_PUBLIC/venv/bin/pip install -r requirements.txt
+ghidra_12.0.2_PUBLIC/venv/bin/pip install -r requirements.txt
 ```
 
 Copy the MISP config.toml template and edit with your own API keys
@@ -22,13 +26,15 @@ Add the `ghidra_scripts` directory from this git repository to the Ghidra Bundle
 
 The scripts are under the category `MISP`
 
-Run `test-MISP-API.py` to test the connection to the MISP instances API (configured in config.toml)
+Run `MISP/Test connection to the MISP instance` to test the connection to the MISP instances API (configured in config.toml)
+
+![GUI scripts](img/GUI-functions.png)
 
 # Headless Usage
 
 Check the [`/test/`](/test/) directory bash scripts for more examples.
 
-## Add object to existing event in MISP
+## Add a sinle ghidra-function object to existing event in MISP
 ```bash
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import ${BINARY_PATH} \
@@ -46,7 +52,7 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     --function-address ${FUNCTION_ADDRESS}
 ```
 
-## Add all functions as objects to an event
+## Add all functions to an event
 ```bash
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import ${BINARY_PATH} \
@@ -54,7 +60,25 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     --new-event \
     --all-functions
 ```
-    
+
+## Filter on function types and names 
+
+This is still a work in progress.
+
+You can filter on which functions to send based on function types (thunk, defined, external, internal) and function names (regex)
+
+```bash
+pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
+    -import ${BINARY_PATH} \
+    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
+    --new-event \
+    --all-functions
+    --name-include "entry" \
+    --name-exclude "^_|^abort|^plt" \
+    --ignore thunks \
+    --new-event \
+```
+
 # In MISP
 
 misp-ghidra creates by default the objects: 

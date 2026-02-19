@@ -16,6 +16,6 @@ pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
     --all-functions \
     --ignore thunks \
     --name-exclude "^_|^abort|^plt" \
-    --extend-event \
+    --new-event \
     -deleteProject \
     
