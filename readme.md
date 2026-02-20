@@ -8,9 +8,9 @@ Ghidra 12.0.2 with PyGhidra and BSIM plugin activated
 
 # Installation
 
-Install requirements with your pyghidra venv
+Install requirements with your pyghidra venv 
 ```bash
-ghidra_12.0.2_PUBLIC/venv/bin/pip install -r requirements.txt
+~/.config/ghidra/ghidra_12.0.2_PUBLIC/ghidra_12.0.2_PUBLIC/venv/bin/pip install -r requirements.txt
 ```
 
 Copy the MISP config.toml template and edit with your own API keys
@@ -20,7 +20,7 @@ cp mispghidra/misp/config/config.template.toml mispghidra/misp/config/config.tom
 
 # GUI Usage
 
-Launch ghidra with PyGhidra : `pyghidra -g`
+Launch ghidra with PyGhidra : `pyghidra -g` or `ghidra_12.0.2_PUBLIC/support/pyghidraRun`
 
 Add the `ghidra_scripts` directory from this git repository to the Ghidra Bundle Manager
 
@@ -34,7 +34,7 @@ Run `MISP/Test connection to the MISP instance` to test the connection to the MI
 
 Check the [`/test/`](/test/) directory bash scripts for more examples.
 
-## Add a sinle ghidra-function object to existing event in MISP
+## Add a single ghidra-function object to existing event in MISP
 ```bash
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import ${BINARY_PATH} \

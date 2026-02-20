@@ -24,9 +24,9 @@
       "ui-priority": 0,
       "disable_correlation": true
     },
-    "entry-point": {
+    "entrypoint-address": {
       "description": "function entry point address",
-      "misp-attribute": "hex",
+      "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true
     },

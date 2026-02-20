@@ -6,7 +6,13 @@ import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 
 from pymisp import PyMISP, MISPObject, MISPEvent, MISPObjectReference
-from pymisp.tools import FileObject
+from pymisp.tools import (
+    FileObject,
+    ELFObject,
+    PEObject,
+    ELFSectionObject,
+    PESectionObject,
+)
 
 from ghidra.feature.fid.service import FidService
 
@@ -153,6 +159,33 @@ class PyMISPGhidra:
 
         self.misp.add_object(event, file_object)
 
+        # Check for PE or elf
+        exe_format = ghidraProgram.getExecutableFormat()
+        if "PE" in exe_format:
+            # required text, type, original-filename, internal-filename, entrypoint-address, imphash, impfuzzy
+            print("PE file")
+            PE_object = PEObject(filepath=path)
+
+            self.misp.add_object(event, PE_object)
+
+            for s in PE_object.sections:
+                self.misp.add_object(event, s)
+
+        elif "ELF" in exe_format:
+            print("Linux/Unix ELF file.")
+
+            elf_object = ELFObject(filepath=path)
+
+            self.misp.add_object(event, elf_object)
+
+            for s in elf_object.sections:
+                self.misp.add_object(event, s)
+
+        elif "Mach-O" in exe_format:
+            print("macOS Mach-O file.")
+        else:
+            print(f"Other format detected: {exe_format}")
+
         logger.info("Created new event with name " + title)
 
         print(f"created:event:uuid:{event.uuid}", file=sys.stdout)
@@ -171,9 +204,7 @@ class PyMISPGhidra:
         ghidra_function.add_attribute("function-name", name)
 
         entry_point = func.getEntryPoint()
-        ghidra_function.add_attribute(
-            "entry-point", Long.toHexString(entry_point.getOffset())
-        )
+        ghidra_function.add_attribute("entrypoint-address", entry_point.getOffset())
 
         logger.info(f"Creating object for function {name} at address {entry_point}")
 
