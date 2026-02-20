@@ -14,6 +14,7 @@ if lib_dir not in sys.path:
     sys.path.append(lib_dir)
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 import mispghidra.PyMISPGhidraScripts as PyMISPGhidraScripts
 

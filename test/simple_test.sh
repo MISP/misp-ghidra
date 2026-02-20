@@ -14,8 +14,9 @@ pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
     -import "test/bin/test_ssl.elf" \
     -postScript "${SCRIPT}" \
     --all-functions \
-    --ignore thunks \
-    --name-exclude "^_|^abort|^plt" \
     --new-event \
     -deleteProject \
+
+    # --ignore thunks \
+    # --name-exclude "^_|^abort|^plt" \
     

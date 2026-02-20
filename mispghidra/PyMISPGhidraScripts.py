@@ -218,7 +218,7 @@ def functions_to_misp(
     mispGhidra.add_object_from_functions(funcs, event=event, call_tree=call_tree)
 
     IOHandler.handle_message(
-        f"Successfully added functions to event {event.info} ({event.uuid}). "
+        f"Successfully added functions to event {event.info} ({event.uuid}). {mispGhidra.get_misp_url(event.uuid)} "
     )
 
 

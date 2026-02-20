@@ -6,6 +6,30 @@
       "ui-priority": 1,
       "disable_correlation": true
     },
+    "label": {
+      "description": "ghidra symbol label",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true,
+      "multiple": true
+    },
+    "function-scope": {
+      "description": "ghidra function type",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true,
+      "sane_default": [
+        "export",
+        "import",
+        "internal"
+      ]
+    },
+    "is-thunk": {
+      "description": "ghidra function type",
+      "misp-attribute": "boolean",
+      "ui-priority": 0,
+      "disable_correlation": true
+    },
     "external-library": {
       "description": "external library name if the function is an external",
       "misp-attribute": "text",

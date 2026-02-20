@@ -26,6 +26,7 @@ import ghidra.app.decompiler.DecompileOptions as DecompileOptions
 import ghidra.program.model.address.Address as Address
 import ghidra.program.model.listing.Function as Function
 from ghidra.app.decompiler.flatapi import FlatDecompilerAPI
+from ghidra.program.model.listing import CodeUnit
 
 global OBJECT_CREATION_LIMIT
 OBJECT_CREATION_LIMIT = 100000
@@ -33,30 +34,6 @@ OBJECT_CREATION_LIMIT = 100000
 import logging
 
 logger = logging.getLogger(__name__)
-
-from java.lang import Byte
-from java.lang.reflect import Array
-
-
-def get_program_bytes(ghidraProgram):
-    # Get the memory of the current program
-    memory = ghidraProgram.getMemory()
-
-    # Get the range of all initialized memory (headers + sections)
-    address_set = memory.getLoadedAndInitializedAddressSet()
-    size = address_set.getNumAddresses()
-
-    # Create a Java byte array to hold the data
-    # Ghidra/Jython needs this specific type to interface with Memory.getBytes
-    buffer = Array.newInstance(Byte.TYPE, int(size))
-
-    # Fill the buffer starting from the first address
-    start_addr = address_set.getMinAddress()
-    bytes_read = memory.getBytes(start_addr, buffer)
-
-    # Convert Java bytes to a Python byte string for PyMISP/MachOObject
-    # We use a join or list comprehension because Java bytes are signed (-128 to 127)
-    return b"".join([chr(b & 0xFF) for b in buffer])
 
 
 class PyMISPGhidra:
@@ -109,6 +86,8 @@ class PyMISPGhidra:
         self.ghidraProgram = ghidraProgram
         self.FIDservice = FidService()
         self.interpreter = interpreter
+        self.symbol_table = ghidraProgram.getSymbolTable()
+        self.listing = ghidraProgram.getListing()
 
         # Copied from BSIM script DumpBSimDebugSignaturesScript.py
         # Probably a much cleaner way
@@ -155,13 +134,18 @@ class PyMISPGhidra:
                 event_id = event["uuid"]
 
                 print(f"found:event:uuid:{event_id}")
+                print(self.get_misp_url(event_id))
         except:
             pass
 
         return events
 
     def create_empty_event(
-        self, title="Ghidra Exported Event", ghidraProgram=None, extends_uuid=None
+        self,
+        title="Ghidra Exported Event",
+        ghidraProgram=None,
+        extends_uuid=None,
+        create_file_objects=True,
     ):
 
         # Right now only support for one program per PyMISPGhidra
@@ -178,6 +162,19 @@ class PyMISPGhidra:
         # event.analysis = 0
 
         event = self.misp.add_event(event, pythonify=True)
+
+        if create_file_objects:
+            self.create_file_objects(event, ghidraProgram)
+
+        logger.info("Created new event with name " + title)
+
+        print(f"created:event:uuid:{event.uuid}", file=sys.stdout)
+        print(self.get_misp_url(event.uuid))
+        return event
+
+    def create_file_objects(self, event, ghidraProgram=None):
+
+        # TODO use the BytesIO of the program if the program doesnt exist on disk ?
 
         path = ghidraProgram.getExecutablePath()
         self.monitor.setMessage(
@@ -227,12 +224,6 @@ class PyMISPGhidra:
                 f"Error building ELF/PE/MachO objects, does the file exist on disk ? {e}"
             )
 
-        logger.info("Created new event with name " + title)
-
-        print(f"created:event:uuid:{event.uuid}", file=sys.stdout)
-
-        return event
-
     def _create_object_from_function(self, func):
 
         ghidra_function = MISPObject(
@@ -247,19 +238,33 @@ class PyMISPGhidra:
         entry_point = func.getEntryPoint()
         ghidra_function.add_attribute("entrypoint-address", entry_point.getOffset())
 
+        comment = func.getComment()
+        if comment:
+            ghidra_function.add_note(comment)
+
+        labels = [s.getName() for s in self.symbol_table.getSymbols(entry_point)]
+        for label in labels:
+            ghidra_function.add_attribute("label", label)
+
         logger.info(f"Creating object for function {name} at address {entry_point}")
 
-        if func.isThunk():
-            ext_loc = func.getExternalLocation()
+        ext_loc = func.getExternalLocation()
+        if ext_loc:
+            ghidra_function.add_attribute("external-library", ext_loc)
 
-            if ext_loc is not None:
+        # TODO redo that part
+        if func.isThunk():
+            ghidra_function.add_attribute("is-thunk", True)
+            thunked = func.getThunkedFunction(True)
+            ext_loc = thunked.getExternalLocation()
+
+            if ext_loc:
                 # Get the Library object
-                lib = ext_loc.getLibrary()
-                ghidra_function.add_attribute(
-                    "external-library", Long.toHexString(lib.getName())
-                )
-            else:
-                ghidra_function.add_attribute("external-library", "<EXTERNAL>")
+                lib = ext_loc.getLibraryName()
+                ghidra_function.add_attribute("external-library", lib)
+
+        if func.isExternal():
+            ghidra_function.add_attribute("function-scope", "import")
 
         ghidra_function.add_attribute(
             "decompiler-minor-version", self.decompiler.getMinorVersion()
@@ -453,6 +458,10 @@ class PyMISPGhidra:
             raise ValueError(f"No function found at address {address}")
 
         return func
+
+    def get_misp_url(self, uuid):
+
+        return f"{self.misp_config['url']}/events/view/{uuid}"
 
     # def create_call_tree_relations_legacy(
     #     self, event: MISPEvent, functions_objects_dict=None, limit=OBJECT_CREATION_LIMIT
