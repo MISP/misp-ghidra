@@ -1,6 +1,6 @@
 from tempfile import template
 from pyghidra import get_current_interpreter
-import toml, os, sys, json
+import toml, os, sys, json, io
 
 import urllib3
 from urllib3.exceptions import InsecureRequestWarning
@@ -10,8 +10,10 @@ from pymisp.tools import (
     FileObject,
     ELFObject,
     PEObject,
+    MachOObject,
     ELFSectionObject,
     PESectionObject,
+    MachOSectionObject,
 )
 
 from ghidra.feature.fid.service import FidService
@@ -31,6 +33,30 @@ OBJECT_CREATION_LIMIT = 100000
 import logging
 
 logger = logging.getLogger(__name__)
+
+from java.lang import Byte
+from java.lang.reflect import Array
+
+
+def get_program_bytes(ghidraProgram):
+    # Get the memory of the current program
+    memory = ghidraProgram.getMemory()
+
+    # Get the range of all initialized memory (headers + sections)
+    address_set = memory.getLoadedAndInitializedAddressSet()
+    size = address_set.getNumAddresses()
+
+    # Create a Java byte array to hold the data
+    # Ghidra/Jython needs this specific type to interface with Memory.getBytes
+    buffer = Array.newInstance(Byte.TYPE, int(size))
+
+    # Fill the buffer starting from the first address
+    start_addr = address_set.getMinAddress()
+    bytes_read = memory.getBytes(start_addr, buffer)
+
+    # Convert Java bytes to a Python byte string for PyMISP/MachOObject
+    # We use a join or list comprehension because Java bytes are signed (-128 to 127)
+    return b"".join([chr(b & 0xFF) for b in buffer])
 
 
 class PyMISPGhidra:
@@ -154,37 +180,52 @@ class PyMISPGhidra:
         event = self.misp.add_event(event, pythonify=True)
 
         path = ghidraProgram.getExecutablePath()
+        self.monitor.setMessage(
+            "Generating File/PE/ELF/MachO objects and sections objects"
+        )
+        try:
+            file_object = FileObject(path)
 
-        file_object = FileObject(path)
+            self.misp.add_object(event, file_object)
 
-        self.misp.add_object(event, file_object)
+            # Check for PE or elf
+            exe_format = ghidraProgram.getExecutableFormat()
+            if "PE" in exe_format:
+                # required text, type, original-filename, internal-filename, entrypoint-address, imphash, impfuzzy
+                print("PE file")
+                PE_object = PEObject(filepath=path)
 
-        # Check for PE or elf
-        exe_format = ghidraProgram.getExecutableFormat()
-        if "PE" in exe_format:
-            # required text, type, original-filename, internal-filename, entrypoint-address, imphash, impfuzzy
-            print("PE file")
-            PE_object = PEObject(filepath=path)
+                self.misp.add_object(event, PE_object)
 
-            self.misp.add_object(event, PE_object)
+                for s in PE_object.sections:
+                    self.misp.add_object(event, s)
 
-            for s in PE_object.sections:
-                self.misp.add_object(event, s)
+            elif "ELF" in exe_format:
+                print("Linux/Unix ELF file.")
 
-        elif "ELF" in exe_format:
-            print("Linux/Unix ELF file.")
+                elf_object = ELFObject(filepath=path)
 
-            elf_object = ELFObject(filepath=path)
+                self.misp.add_object(event, elf_object)
 
-            self.misp.add_object(event, elf_object)
+                for s in elf_object.sections:
+                    self.misp.add_object(event, s)
 
-            for s in elf_object.sections:
-                self.misp.add_object(event, s)
+            elif "Mach-O" in exe_format:
+                print("macOS Mach-O file.")
 
-        elif "Mach-O" in exe_format:
-            print("macOS Mach-O file.")
-        else:
-            print(f"Other format detected: {exe_format}")
+                macho_object = MachOObject(filepath=path)
+
+                self.misp.add_object(event, macho_object)
+
+                for s in macho_object.sections:
+                    self.misp.add_object(event, s)
+
+            else:
+                print(f"Other format detected: {exe_format}")
+        except Exception as e:
+            logger.error(
+                f"Error building ELF/PE/MachO objects, does the file exist on disk ? {e}"
+            )
 
         logger.info("Created new event with name " + title)
 
