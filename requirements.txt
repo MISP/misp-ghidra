@@ -1,6 +1,6 @@
 urllib3
-pymisp
-pymisp[fileobjects]
 toml
-tlsh
 pyghidra
+
+pymisp
+pymisp[fileobject] ; sys_platform != 'win32'

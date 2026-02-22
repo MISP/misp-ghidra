@@ -6,15 +6,23 @@ import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 
 from pymisp import PyMISP, MISPObject, MISPEvent, MISPObjectReference
-from pymisp.tools import (
-    FileObject,
-    ELFObject,
-    PEObject,
-    MachOObject,
-    ELFSectionObject,
-    PESectionObject,
-    MachOSectionObject,
-)
+
+# For windows, skip pymisp fileobjects (dependancy on pydeep)
+try:
+    from pymisp.tools import (
+        FileObject,
+        ELFObject,
+        PEObject,
+        MachOObject,
+        ELFSectionObject,
+        PESectionObject,
+        MachOSectionObject,
+    )
+    HAS_FILE_OBJECTS = True
+except ImportError:
+    HAS_FILE_OBJECTS = False
+    # Optional: Log a warning so you know why it's missing
+    print("Warning: pymisp[fileobjects] not installed. File analysis features will be disabled.")
 
 from ghidra.feature.fid.service import FidService
 
@@ -151,11 +159,15 @@ class PyMISPGhidra:
         # Right now only support for one program per PyMISPGhidra
         if ghidraProgram == None:
             ghidraProgram = self.ghidraProgram
+        
+        # 1. Instantiate an empty event
+        event = MISPEvent()
+
+        # 2. Set the properties directly
+        event.info = title
 
         if extends_uuid:
-            event = MISPEvent(info=title, extends_uuid=extends_uuid)
-        else:
-            event = MISPEvent(info=title)
+            event.extends_uuid = extends_uuid
 
         # event.distribution = args.distrib
         # event.threat_level_id = args.threat
@@ -163,7 +175,7 @@ class PyMISPGhidra:
 
         event = self.misp.add_event(event, pythonify=True)
 
-        if create_file_objects:
+        if create_file_objects and HAS_FILE_OBJECTS:
             self.create_file_objects(event, ghidraProgram)
 
         logger.info("Created new event with name " + title)

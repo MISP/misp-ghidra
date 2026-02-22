@@ -1,15 +1,15 @@
 [misp]
 
-# MISP�Server Name
+# MISP Server Name
 name = "My MISP Server"
 
 # MISP server URL
-url = "localhost"
+url = "https://localhost"
 
 # API key to access MISP server
 key = "changeme"
 
-# TLS�verification
+# TLS verification
 ssl = true
 
 # Enable
