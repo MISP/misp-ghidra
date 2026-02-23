@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath MISP.Call Tree.Recreate call tree in MISP
+# @menupath MISP.Send to MISP.Call Tree.Recreate call tree in MISP
 # @toolbar misp.png
 # @runtime PyGhidra
 

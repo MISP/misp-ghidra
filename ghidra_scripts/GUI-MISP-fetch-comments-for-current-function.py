@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.search
 # @keybinding
-# @menupath MISP.Search.Search for current functon in MISP
+# @menupath MISP.Fetch from MISP.Search for current functon in MISP
 # @runtime PyGhidra
 
 

@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.ghidra-function
 # @keybinding
-# @menupath MISP.Ghidra Functions.Current selection to MISP
+# @menupath MISP.Send to MISP.Ghidra Functions.Current selection to MISP
 # @toolbar misp.png
 # @runtime PyGhidra
 

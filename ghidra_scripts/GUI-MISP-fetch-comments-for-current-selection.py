@@ -2,7 +2,8 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.search
 # @keybinding
-# @menupath MISP.Search.Fetch MISP comments for current selection
+# @toolbar misp.png
+# @menupath MISP.Fetch from MISP.Fetch MISP comments for current selection
 # @runtime PyGhidra
 
 import time, logging, argparse, importlib, os, sys

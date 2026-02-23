@@ -2,7 +2,7 @@
 # @author Thomas Caillet @rdmmf
 # @category MISP.search
 # @keybinding
-# @menupath MISP.Search.Fetch MISP comments for all function
+# @menupath MISP.Fetch from MISP.Fetch MISP comments for all function
 # @runtime PyGhidra
 
 import time, logging, argparse, importlib, os, sys
