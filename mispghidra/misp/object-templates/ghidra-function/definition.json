@@ -7,14 +7,14 @@
       "disable_correlation": true
     },
     "label": {
-      "description": "ghidra symbol label",
+      "description": "ghidra symbol label(s) associated with the function",
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true,
       "multiple": true
     },
     "function-scope": {
-      "description": "ghidra function type",
+      "description": "ghidra function scope (export, import, internal)",
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true,
@@ -25,13 +25,13 @@
       ]
     },
     "is-thunk": {
-      "description": "ghidra function type",
+      "description": "identifies a thunk function",
       "misp-attribute": "boolean",
       "ui-priority": 0,
       "disable_correlation": true
     },
     "external-library": {
-      "description": "external library name if the function is an external",
+      "description": "external library name if the function is an import",
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true
@@ -49,7 +49,7 @@
       "disable_correlation": true
     },
     "entrypoint-address": {
-      "description": "function entry point address",
+      "description": "function entrypoint address (integer in a text for consistency with the entrypoint-address in ELF/PE/Mach-O Objects)",
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true
@@ -93,6 +93,18 @@
     },
     "function-signature": {
       "description": "Function signature",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true
+    },
+    "return-type": {
+      "description": "The data type returned by the function",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true
+    },
+      "calling-convention": {
+      "description": "The calling convention used by the function (e.g., cdecl, stdcall)",
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true

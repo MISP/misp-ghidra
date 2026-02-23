@@ -240,11 +240,13 @@ class PyMISPGhidra:
             )
 
     def get_function_infos(self, func):
+        # Initialize all potential conditional values to None
+        ext_lib = fh_hex = fx_hex = fn_sig = fn_code = calling_convention = None
+
         # Basic Info
         entry_point = func.getEntryPoint()
 
         # Handle External/Thunk logic
-        ext_lib = None
         if func.isThunk():
             thunked = func.getThunkedFunction(True)
             if thunked and thunked.getExternalLocation():
@@ -252,13 +254,13 @@ class PyMISPGhidra:
         elif func.getExternalLocation():
             ext_lib = func.getExternalLocation().getLibraryName()
 
+        instruction_count = len(
+            list(self.ghidraProgram.getListing().getInstructions(func.getBody(), True))
+        )
+
         # FID Hashes
         hash_function = self.FIDservice.hashFunction(func)
-        fh_hex = None
-        fx_hex = None
-
         if hash_function:
-            # Handle potential property vs method access in pyghidra/ghidra versions
             fh = hash_function.getFullHash()
             fx = hash_function.getSpecificHash()
             fh_hex = Long.toHexString(fh)
@@ -270,6 +272,23 @@ class PyMISPGhidra:
             [format(f & 0xFFFFFFFF, "08x") for f in signature.features]
         )
 
+        # Decompilation logic
+        decomp_results = self.decompiler.decompileFunction(func, 30, self.monitor)
+        try:
+            decomp_func = decomp_results.getDecompiledFunction()
+            fn_sig = decomp_func.getSignature()
+            fn_code = decomp_func.getC()
+        except:
+            print("There was an error in decompilation!")
+
+        calling_convention = (
+            str(func.getCallingConventionName())
+            if func.getCallingConventionName()
+            else None
+        )
+        lang_id = self.ghidraProgram.getLanguageID().toString()
+        comp_id = self.ghidraProgram.getCompilerSpec().getCompilerSpecID().toString()
+        print(lang_id, comp_id)
         return {
             "function-name": func.getName(),
             "entrypoint-address": entry_point.getOffset(),
@@ -280,10 +299,14 @@ class PyMISPGhidra:
             "function-scope": "import" if func.isExternal() else "internal",
             "decompiler-minor-version": self.decompiler.getMinorVersion(),
             "decompiler-major-version": self.decompiler.getMajorVersion(),
-            "instruction-count": func.getBody().getNumAddresses(),
+            "instruction-count": instruction_count,
             "fid-fh-hash": fh_hex,
             "fid-fx-hash": fx_hex,
             "bsim-vector": vector_csv,
+            "decompiled-function": fn_code,
+            "function-signature": fn_sig,
+            "return-type": func.getReturnType().getName(),
+            "calling-convention": calling_convention,
         }
 
     def _create_object_from_function(self, func):
@@ -334,6 +357,23 @@ class PyMISPGhidra:
             ghidra_function.add_attribute("fid-fx-hash", value=info["fid-fx-hash"])
 
         ghidra_function.add_attribute("bsim-vector", value=info["bsim-vector"])
+
+        if info["decompiled-function"]:
+            ghidra_function.add_attribute(
+                "decompiled-function", value=info["decompiled-function"]
+            )
+
+        if info["function-signature"]:
+            ghidra_function.add_attribute(
+                "function-signature", value=info["function-signature"]
+            )
+
+        if info["calling-convention"]:
+            ghidra_function.add_attribute(
+                "calling-convention", value=info["calling-convention"]
+            )
+
+        ghidra_function.add_attribute("return-type", value=info["return-type"])
 
         logger.info(
             f"Created MISP object for {info['function-name']} at {hex(info['entrypoint-address'])}"

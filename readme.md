@@ -111,3 +111,10 @@ Event correlation graph
 Event graph
 
 <img src="img/function_call_graph.png">
+
+# License 
+
+This software is licensed under [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+Copyright 2026 Thomas Caillet
+Copyright 2026 CIRCL - Computer Incident Response Center Luxembourg
