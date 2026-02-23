@@ -83,7 +83,20 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
 
 misp-ghidra creates by default the objects: 
 ```
+for the program file : 
 	file   | file
+
+for PE programs :
+    file   | pe
+    file   | pe-section
+for ELF programs :
+    file   | elf
+    file   | elf-section
+for Mach-O programs :
+    file   | macho
+    file   | macho-section
+
+And for all ghidra functions (custom object for now):
     ghidra | ghidra-function
 ```
 

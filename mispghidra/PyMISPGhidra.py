@@ -18,11 +18,14 @@ try:
         PESectionObject,
         MachOSectionObject,
     )
+
     HAS_FILE_OBJECTS = True
 except ImportError:
     HAS_FILE_OBJECTS = False
     # Optional: Log a warning so you know why it's missing
-    print("Warning: pymisp[fileobjects] not installed. File analysis features will be disabled.")
+    print(
+        "Warning: pymisp[fileobjects] not installed. File analysis features will be disabled."
+    )
 
 from ghidra.feature.fid.service import FidService
 
@@ -159,7 +162,7 @@ class PyMISPGhidra:
         # Right now only support for one program per PyMISPGhidra
         if ghidraProgram == None:
             ghidraProgram = self.ghidraProgram
-        
+
         # 1. Instantiate an empty event
         event = MISPEvent()
 
@@ -236,84 +239,105 @@ class PyMISPGhidra:
                 f"Error building ELF/PE/MachO objects, does the file exist on disk ? {e}"
             )
 
+    def get_function_infos(self, func):
+        # Basic Info
+        entry_point = func.getEntryPoint()
+
+        # Handle External/Thunk logic
+        ext_lib = None
+        if func.isThunk():
+            thunked = func.getThunkedFunction(True)
+            if thunked and thunked.getExternalLocation():
+                ext_lib = thunked.getExternalLocation().getLibraryName()
+        elif func.getExternalLocation():
+            ext_lib = func.getExternalLocation().getLibraryName()
+
+        # FID Hashes
+        hash_function = self.FIDservice.hashFunction(func)
+        fh_hex = None
+        fx_hex = None
+
+        if hash_function:
+            # Handle potential property vs method access in pyghidra/ghidra versions
+            fh = hash_function.getFullHash()
+            fx = hash_function.getSpecificHash()
+            fh_hex = Long.toHexString(fh)
+            fx_hex = Long.toHexString(fx)
+
+        # BSIM Vector
+        signature = self.decompiler.generateSignatures(func, True, 10, None)
+        vector_csv = ",".join(
+            [format(f & 0xFFFFFFFF, "08x") for f in signature.features]
+        )
+
+        return {
+            "function-name": func.getName(),
+            "entrypoint-address": entry_point.getOffset(),
+            "comment": func.getComment(),
+            "labels": [s.getName() for s in self.symbol_table.getSymbols(entry_point)],
+            "external-library": ext_lib,
+            "is-thunk": func.isThunk(),
+            "function-scope": "import" if func.isExternal() else "internal",
+            "decompiler-minor-version": self.decompiler.getMinorVersion(),
+            "decompiler-major-version": self.decompiler.getMajorVersion(),
+            "instruction-count": func.getBody().getNumAddresses(),
+            "fid-fh-hash": fh_hex,
+            "fid-fx-hash": fx_hex,
+            "bsim-vector": vector_csv,
+        }
+
     def _create_object_from_function(self, func):
 
+        # 1. Extract data using the first function
+        info = self.get_function_infos(func=func)
+
+        # 2. Initialize MISP Object
         ghidra_function = MISPObject(
-            "ghidra-function",
+            name="ghidra-function",
             strict=True,
             misp_objects_template_custom=self.ghidra_function_template,
         )
 
-        name = func.getName()
-        ghidra_function.add_attribute("function-name", name)
-
-        entry_point = func.getEntryPoint()
-        ghidra_function.add_attribute("entrypoint-address", entry_point.getOffset())
-
-        comment = func.getComment()
-        if comment:
-            ghidra_function.add_note(comment)
-
-        labels = [s.getName() for s in self.symbol_table.getSymbols(entry_point)]
-        for label in labels:
-            ghidra_function.add_attribute("label", label)
-
-        logger.info(f"Creating object for function {name} at address {entry_point}")
-
-        ext_loc = func.getExternalLocation()
-        if ext_loc:
-            ghidra_function.add_attribute("external-library", ext_loc)
-
-        # TODO redo that part
-        if func.isThunk():
-            ghidra_function.add_attribute("is-thunk", True)
-            thunked = func.getThunkedFunction(True)
-            ext_loc = thunked.getExternalLocation()
-
-            if ext_loc:
-                # Get the Library object
-                lib = ext_loc.getLibraryName()
-                ghidra_function.add_attribute("external-library", lib)
-
-        if func.isExternal():
-            ghidra_function.add_attribute("function-scope", "import")
-
+        # 3. Map values to attributes
+        ghidra_function.add_attribute("function-name", value=info["function-name"])
         ghidra_function.add_attribute(
-            "decompiler-minor-version", self.decompiler.getMinorVersion()
-        )
-        ghidra_function.add_attribute(
-            "decompiler-major-version", self.decompiler.getMajorVersion()
+            "entrypoint-address", value=info["entrypoint-address"]
         )
 
-        instructions_count = func.getBody().getNumAddresses()
-        ghidra_function.add_attribute("instruction-count", instructions_count)
+        if info["comment"]:
+            ghidra_function.add_note(note=info["comment"])
 
-        # Function ID
-        hashFunction = self.FIDservice.hashFunction(func)
+        for label in info["labels"]:
+            ghidra_function.add_attribute("label", value=label)
 
-        if hashFunction is None:
-            logger.info(f"No hash function {name} at address {entry_point}. ")
-            return ghidra_function
+        if info["external-library"]:
+            ghidra_function.add_attribute(
+                "external-library", value=info["external-library"]
+            )
 
-        fh_hex = hashFunction.fullHash
-        fx_hex = hashFunction.specificHash
+        if info["is-thunk"]:
+            ghidra_function.add_attribute("is-thunk", value=True)
 
-        if fh_hex is None:
-            fh_hex = hashFunction.getFullHash()
-        if fx_hex is None:
-            fx_hex = hashFunction.getSpecificHash()
+        ghidra_function.add_attribute("function-scope", value=info["function-scope"])
+        ghidra_function.add_attribute(
+            "decompiler-minor-version", value=info["decompiler-minor-version"]
+        )
+        ghidra_function.add_attribute(
+            "decompiler-major-version", value=info["decompiler-major-version"]
+        )
+        ghidra_function.add_attribute(
+            "instruction-count", value=info["instruction-count"]
+        )
 
-        # BSIM vector
+        if info["fid-fh-hash"]:
+            ghidra_function.add_attribute("fid-fh-hash", value=info["fid-fh-hash"])
+            ghidra_function.add_attribute("fid-fx-hash", value=info["fid-fx-hash"])
 
-        signature = self.decompiler.generateSignatures(func, True, 10, None)
-        vector = signature.features
-        # For now this is a comma separated hex string of the vector
-        vector_csv = ",".join([format(f & 0xFFFFFFFF, "08x") for f in vector])
+        ghidra_function.add_attribute("bsim-vector", value=info["bsim-vector"])
 
-        ghidra_function.add_attribute("bsim-vector", vector_csv)
-
-        ghidra_function.add_attribute("fid-fh-hash", Long.toHexString(fh_hex))
-        ghidra_function.add_attribute("fid-fx-hash", Long.toHexString(fx_hex))
+        logger.info(
+            f"Created MISP object for {info['function-name']} at {hex(info['entrypoint-address'])}"
+        )
 
         return ghidra_function
 
