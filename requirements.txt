@@ -3,4 +3,4 @@ toml
 pyghidra
 
 pymisp
-pymisp[fileobject] ; sys_platform != 'win32'
+pymisp[fileobjects] ; sys_platform != 'win32'

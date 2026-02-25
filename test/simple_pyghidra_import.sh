@@ -7,7 +7,7 @@ PROJECT_NAME="temp_project"
 BINARY_PATH="test/bin/test_ssl.elf"
 EVENT_UUID_EXISTING="d5ad48bd-b027-4400-a564-dde16d0c883b"
 FUNCTION_ADDRESS="101189"
-SCRIPT="ghidra_scripts/ghidra-functions-to-MISP.py"
+SCRIPT="headless_scripts/ghidra-functions-to-MISP.py"
 
 # Use -import to handle the binary file directly from the filesystem
 # -deleteProject is added to clean up the temp project after the run

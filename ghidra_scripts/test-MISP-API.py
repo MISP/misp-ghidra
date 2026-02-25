@@ -33,6 +33,7 @@ from pyghidra import get_current_interpreter
 
 import time, datetime, logging
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

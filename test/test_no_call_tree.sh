@@ -5,25 +5,24 @@ source setup.sh
 PROJECT_PATH="$(mktemp -d /tmp/ghidra-temp-project.XXXXXXXXX)"
 PROJECT_NAME="temp_project2"
 BINARY_PATH="test/bin/test_ssl.elf"
-EVENT_UUID_EXISTING="dd0d96a3-09d9-466b-a624-ff1c78d15259"
+EVENT_UUID_EXISTING="419739fe-37f8-47fe-96bb-de260996591d"
 FUNCTION_ADDRESS="0010e3a0"
-SCRIPT_MISP="ghidra_scripts/ghidra-functions-to-MISP.py"
-SCRIPT_TREE="ghidra_scripts/create-MISP-call-tree.py"
+SCRIPT_MISP="headless_scripts/ghidra-functions-to-MISP.py"
+SCRIPT_TREE="headless_scripts/create-MISP-call-tree.py"
 
 # Add multiple functions to new event
 echo "[+] Creating new event with all functions but no call tree"
 
 # We use -import here. Note: pyghidraRun sends log info to stdout.
 # Your python script must print "event:uuid:<uuid>" to stdout for grep to catch it.
-NEW_EVENT_UUID=$(pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
+pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
     -import "${BINARY_PATH}" \
     -postScript "${SCRIPT_MISP}" \
-    --new-event \
+    --event-uuid $EVENT_UUID_EXISTING \
     --all-functions \
     --no-call-tree \
-| grep -Po '(?<=event:uuid:)[a-f0-9-]+')
+    --verbose \
 
-echo "Extracted UUID: ${NEW_EVENT_UUID}"
 
 echo "[+] Now manually building call tree of event ${NEW_EVENT_UUID}"
 
@@ -33,7 +32,8 @@ pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
     -process "*" \
     -noanalysis \
     -postScript "${SCRIPT_TREE}" \
-    --event-uuid "${NEW_EVENT_UUID}"
+    --event-uuid $EVENT_UUID_EXISTING \
+    -v
 
 # Cleanup the temp project
 rm -rf "${PROJECT_PATH}"

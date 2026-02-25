@@ -133,7 +133,6 @@ class PyMISPGhidraIOHandler:
                 )
                 addresses = [choice.split(":")[0] for choice in choices]
                 return addresses
-            # TODO use Ghidra parseChoices function
 
     def handle_event_uuid(self, uuid) -> str | None:
 

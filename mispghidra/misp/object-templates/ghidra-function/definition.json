@@ -36,18 +36,6 @@
       "ui-priority": 0,
       "disable_correlation": true
     },
-    "decompiler-minor-version": {
-      "description": "ghidra's decompiler (minor) version used to generate the FID and BSIM hashes.",
-      "misp-attribute": "integer",
-      "ui-priority": 0,
-      "disable_correlation": true
-    },
-    "decompiler-major-version": {
-      "description": "ghidra's decompiler (major) version used to generate the FID and BSIM hashes.",
-      "misp-attribute": "integer",
-      "ui-priority": 0,
-      "disable_correlation": true
-    },
     "entrypoint-address": {
       "description": "function entrypoint address (integer in a text for consistency with the entrypoint-address in ELF/PE/Mach-O Objects)",
       "misp-attribute": "text",
@@ -108,6 +96,18 @@
       "misp-attribute": "text",
       "ui-priority": 0,
       "disable_correlation": true
+    },
+      "language-id": {
+      "description": "Language id of the program (architecture, compiler, etc.)",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true
+    },
+    "decompiler-id": {
+      "description": "ghidra's decompiler version used to generate the FID and BSIM hashes.",
+      "misp-attribute": "text",
+      "ui-priority": 0,
+      "disable_correlation": true
     }
   },
   "description": "ghidra function",
@@ -115,8 +115,7 @@
   "name": "ghidra-function",
   "required": [
     "function-name",
-    "decompiler-minor-version",
-    "decompiler-major-version"
+    "decompiler-id"
   ],
   "uuid": "4679fa5b-a9b4-463a-aaec-1ca563abedde",
   "version": 1

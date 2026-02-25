@@ -7,7 +7,7 @@ PROJECT_NAME="temp_project"
 BINARY_PATH="test/bin/test_ssl.elf"
 EVENT_UUID_EXISTING="d5ad48bd-b027-4400-a564-dde16d0c883b"
 FUNCTION_ADDRESS="101189"
-SCRIPT="ghidra_scripts/ghidra-functions-to-MISP.py"
+SCRIPT="headless_scripts/ghidra-functions-to-MISP.py"
 
 echo "[+] Add multiple functions to new event"
 pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
@@ -15,8 +15,6 @@ pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \
     -postScript "${SCRIPT}" \
     --all-functions \
     --new-event \
-    -deleteProject \
-
-    # --ignore thunks \
-    # --name-exclude "^_|^abort|^plt" \
+    -v \
+    --ignore thunk
     

@@ -6,7 +6,7 @@ PROJECT_PATH="$(mktemp -d /tmp/ghidra-temp-project.XXXXXXXXX)"
 PROJECT_NAME="temp_project"
 BINARY_PATH="test/bin/test_ssl.elf"
 FUNCTION_ADDRESS="00105028"
-SCRIPT="ghidra_scripts/ghidra-functions-to-MISP.py"
+SCRIPT="headless_scripts/ghidra-functions-to-MISP.py"
 
 echo "[+] Adding object to new event"
 pyghidraRun --headless "${PROJECT_PATH}" "${PROJECT_NAME}" \

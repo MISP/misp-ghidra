@@ -1,10 +1,17 @@
 MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidra decompilation indicators (functions names, FID hashes, BSIM vectors) to MISP Objects
 
-This is a work in progress.
+# Features
+
+ - (From GUI or Headless) Export to a MISP instance :
+    - program metadatas to a MISP file objects (PE, ELF, MachO file/section objects)
+    - function metadatas, FID and BSIM hashes and decompiled code to a MISP [ghidra-function object](/mispghidra/misp/object-templates/ghidra-function/definition.json)
+ - (From GUI) (in development) Search similar functions in MISP using FID and BSIM hashes
 
 # Requirements
 
-Ghidra 12.0.2 with PyGhidra and BSIM plugin activated
+ - Ghidra 12.0.2 with PyGhidra
+ - pymisp
+ - pymisp[fileobjects] (not required for windows)
 
 # Installation
 
@@ -65,7 +72,7 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
 
 This is still a work in progress.
 
-You can filter on which functions to send based on function types (thunk, defined, external, internal) and function names (regex)
+You can filter on which functions to send based on function types (thunk, internal, external, internal) and function names (regex)
 
 ```bash
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
@@ -75,7 +82,7 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     --all-functions
     --name-include "entry" \
     --name-exclude "^_|^abort|^plt" \
-    --ignore thunks \
+    --ignore thunk \
     --new-event \
 ```
 
@@ -99,6 +106,9 @@ for Mach-O programs :
 And for all ghidra functions (custom object for now):
     ghidra | ghidra-function
 ```
+## ghidra-function object 
+
+<img src="img/image.png">
 
 ## Correlation graph on FID hashes
 
@@ -117,4 +127,5 @@ Event graph
 This software is licensed under [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 Copyright 2026 Thomas Caillet
+
 Copyright 2026 CIRCL - Computer Incident Response Center Luxembourg

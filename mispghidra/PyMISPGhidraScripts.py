@@ -43,7 +43,7 @@ def functions_to_misp(
     call_tree=True,
     new_event=False,
     ignored_functions=[],
-    included_functions=["imports", "exports", "thunks", "defined"],
+    included_functions=["import", "export", "thunk", "internal"],
     name_include=None,
     name_exclude=None,
     min_blocks=0,
@@ -125,12 +125,13 @@ def search_functions_in_misp(
     all_functions=False,
     use_current_selection=False,
     ignored_functions=[],
-    included_functions=["imports", "exports", "thunks", "defined"],
+    included_functions=["import", "export", "thunk", "internal"],
     name_include=None,
     name_exclude=None,
     min_blocks=0,
 ):
 
+    # TODO This function is experimental, needs to be optimized
     isHeadless = state.getTool() is None
     selectedProgram = state.getCurrentProgram()
 
@@ -169,7 +170,6 @@ def search_functions_in_misp(
         len(funcs), f"Looking for function hashes for {len(funcs)} functions..."
     )
 
-    # TODO search for all functions in MISP
     for i, func in enumerate(funcs):
         if monitor.isCancelled():
             exit()
@@ -179,7 +179,6 @@ def search_functions_in_misp(
         func_infos = mispGhidra.get_function_infos(func=func)
 
         # 2. Prepare our search criteria
-        # We search for the hashes and the vector specifically
         search_terms = []
         if func_infos.get("fid-fh-hash"):
             search_terms.append(func_infos["fid-fh-hash"])
@@ -189,7 +188,6 @@ def search_functions_in_misp(
             search_terms.append(func_infos["bsim-vector"])
 
         # 3. Perform the search in MISP
-        # We use 'complex_reverse_check' or simple 'search' depending on your needs
         for term in search_terms:
             if monitor.isCancelled():
                 exit()
@@ -396,6 +394,19 @@ def filter_functions(
 
     # Check functions exist and retrieve them, handle exceptions if they don't
     monitor.setMessage(f"Applying function filters...")
+
+    if "internal" in included_functions:
+        logger.warning("Internal identification is not supported for now")
+
+    if "export" in included_functions:
+        logger.warning("Export identification is not supported for now")
+
+    if "export" in ignored_functions:
+        logger.warning("Export identification is not supported for now")
+
+    if "internal" in ignored_functions:
+        logger.warning("Internal identification is not supported for now")
+
     for func_address in func_addresses:
 
         if monitor.isCancelled():
@@ -410,23 +421,36 @@ def filter_functions(
             )
 
             if func is None:
-                print(f"No function found at address {func_address}")
+                logger.info(f"No function found at address {func_address}")
                 continue
-            # TODO make the function seleciton a specific function
 
-            if "thunks" in ignored_functions and func.isThunk():
-                print("ignore thunked", name)
+            # IGNORED FUNCTION TYPES
+            if "thunk" in ignored_functions and func.isThunk():
+                logger.info(f"ignore thunked {name}")
+                continue
+
+            if "import" in ignored_functions and func.isExternal():
+                logger.info(f"ignore import {name}")
+                continue
+
+            # INCLUDED FUNCTION TYPES
+            if "thunk" not in included_functions and func.isThunk():
+                logger.info(f"not include thunked {name}")
+                continue
+
+            if "import" not in included_functions and func.isExternal():
+                logger.info(f"not include import {name}")
                 continue
 
             name = func.getName()
             # 1. Exclusion Logic (Skip matches)
             if exclude_re and exclude_re.search(name):
-                print("ignore regex", name)
+                logger.info(f"exclude regex {name}")
                 continue
 
             # 2. Inclusion Logic (Only keep matches)
             if include_re and not include_re.search(name):
-                print("not included regex", name)
+                logger.info(f"not include regex {name}")
                 continue
 
             # Small functions exclusion, based on min blocks
@@ -438,7 +462,7 @@ def filter_functions(
 
             if count < min_blocks:
 
-                print("Ignored small func", name, count)
+                logger.info(f"Ignored small func {name} {count}")
 
             funcs.append(func)
 

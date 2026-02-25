@@ -14,7 +14,7 @@ echo "[+] Batch import two scripts"
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import "test/bin/test_ssl2.elf" \
     -import "test/bin/test_ssl.elf" \
-    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
+    -postScript headless_scripts/ghidra-functions-to-MISP.py \
     --all-functions \
     --new-event \
     --verbose \
@@ -22,7 +22,7 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
 echo "[+] Do the same thing"
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -process "*" -noanalysis \
-    -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
+    -postScript headless_scripts/ghidra-functions-to-MISP.py \
     --all-functions \
     --new-event \
     --verbose \

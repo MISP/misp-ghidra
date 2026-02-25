@@ -12,8 +12,8 @@ lib_dir = os.path.join(os.path.dirname(__file__), "..")
 if lib_dir not in sys.path:
     sys.path.append(lib_dir)
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 import mispghidra.PyMISPGhidraScripts as PyMISPGhidraScripts
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # Default args
     PyMISPGhidraScripts.search_functions_in_misp(
         all_functions=True,
-        ignored_functions=["thunks"],
+        ignored_functions=["thunk"],
         state=state,
         interpreter=get_current_interpreter(),
         monitor=monitor,

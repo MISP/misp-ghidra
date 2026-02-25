@@ -14,7 +14,6 @@ lib_dir = os.path.join(os.path.dirname(__file__), "..")
 if lib_dir not in sys.path:
     sys.path.append(lib_dir)
 
-logger = logging.getLogger(__name__)
 
 import mispghidra.PyMISPGhidraScripts as PyMISPGhidraScripts
 
@@ -34,7 +33,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--event-uuid", type=str, default=None)
 
-    functions_types_choices = ["imports", "exports", "thunks", "defined"]
+    functions_types_choices = ["import", "export", "thunk", "internal"]
     parser.add_argument(
         "--ignore",
         dest="ignored_functions",
@@ -76,8 +75,9 @@ if __name__ == "__main__":
         "-v",
         "--verbose",
         dest="verbose",
+        default=0,
         help="increase output verbosity",
-        action="store_true",
+        action="count",
     )
 
     parser.add_argument(
@@ -110,8 +110,15 @@ if __name__ == "__main__":
     args_list = getScriptArgs()
     args = parser.parse_args(args_list)
 
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
+    if args.verbose == 0:
+        level = logging.WARNING
+    elif args.verbose == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
+    logging.basicConfig(level=level)
+    logger = logging.getLogger(__name__)
 
     PyMISPGhidraScripts.functions_to_misp(
         state=state,

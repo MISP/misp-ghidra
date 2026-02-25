@@ -1,4 +1,5 @@
 #!/bin/bash
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -14,5 +15,8 @@ else
     exit 1
 fi
 
+export PATH="$PATH:/$GHIDRA_INSTALL_DIR/support/"
+
 source ${VENV_PATH}/bin/activate
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt
+
