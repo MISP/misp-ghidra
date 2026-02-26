@@ -1,0 +1,3 @@
+[submodule "mispghidra/misp/misp-objects"]
+	path = mispghidra/misp/misp-objects
+	url = https://github.com/MISP/misp-objects.git

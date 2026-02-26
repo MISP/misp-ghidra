@@ -85,7 +85,7 @@ class PyMISPGhidra:
 
         with open(
             self.mispGhidraPath
-            + "/misp/object-templates/ghidra-function/definition.json"
+            + "/misp/misp-objects/objects/ghidra-function/definition.json"
         ) as f:
             self.ghidra_function_template = json.load(f)
 

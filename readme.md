@@ -4,7 +4,7 @@ MISP-Ghidra is a python library and scripts to extend Ghidra for exporting ghidr
 
  - (From GUI or Headless) Export to a MISP instance :
     - program metadatas to a MISP file objects (PE, ELF, MachO file/section objects)
-    - function metadatas, FID and BSIM hashes and decompiled code to a MISP [ghidra-function object](/mispghidra/misp/object-templates/ghidra-function/definition.json)
+    - function metadatas, FID and BSIM hashes and decompiled code to a MISP [ghidra-function object](/mispghidra/misp/object-templates/ghidra-function/definition.json) (version 1)
  - (From GUI) (in development) Search similar functions in MISP using FID and BSIM hashes
 
 # Requirements
