@@ -58,8 +58,10 @@ class PyMISPGhidra:
         monitor,
         config_path="misp/config/config.toml",
         disableUrlWarning=True,
+        offline=False,
     ):
         self.monitor = monitor
+        self.offline = offline
 
         # PyMISP parameters
         if disableUrlWarning:
@@ -72,22 +74,46 @@ class PyMISPGhidra:
         if script_dir not in sys.path:
             sys.path.append(script_dir)
 
-        config_full_path = os.path.join(os.path.dirname(__file__), config_path)
-        config = toml.load(open(config_full_path, encoding="utf-8"))
+        self.misp_config = None
+        self.misp = None
 
-        self.misp_config = config["misp"]
+        if not self.offline:
+            try:
+                config_full_path = os.path.join(os.path.dirname(__file__), config_path)
+                config = toml.load(open(config_full_path, encoding="utf-8"))
 
-        self.misp = PyMISP(
-            url=self.misp_config["url"],
-            key=self.misp_config["key"],
-            ssl=self.misp_config["ssl"],
+                self.misp_config = config["misp"]
+
+                self.misp = PyMISP(
+                    url=self.misp_config["url"],
+                    key=self.misp_config["key"],
+                    ssl=self.misp_config["ssl"],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load MISP configuration or connect to MISP: {e}. Falling back to offline mode."
+                )
+                self.offline = True
+
+        # Load ghidra-function template with fallback
+        template_path = os.path.join(
+            self.mispGhidraPath,
+            "misp/misp-objects/objects/ghidra-function/definition.json",
         )
+        if not os.path.exists(template_path):
+            template_path = os.path.join(
+                self.mispGhidraPath,
+                "misp/object-templates/ghidra-function/definition.json",
+            )
 
-        with open(
-            self.mispGhidraPath
-            + "/misp/misp-objects/objects/ghidra-function/definition.json"
-        ) as f:
-            self.ghidra_function_template = json.load(f)
+        try:
+            with open(template_path) as f:
+                self.ghidra_function_template = json.load(f)
+        except Exception as e:
+            logger.error(
+                f"Failed to load ghidra-function template from {template_path}: {e}"
+            )
+            raise e
 
         # Ghidra parameters
 
@@ -123,6 +149,10 @@ class PyMISPGhidra:
         self.language = self.ghidraProgram.getLanguage()
 
     def get_existing_events(self, ghidraProgram=None) -> dict:
+
+        if self.offline or self.misp is None:
+            return []
+
         if ghidraProgram == None:
             ghidraProgram = self.ghidraProgram
 
@@ -181,7 +211,8 @@ class PyMISPGhidra:
         # event.threat_level_id = args.threat
         # event.analysis = 0
 
-        event = self.misp.add_event(event, pythonify=True)
+        if not self.offline and self.misp:
+            event = self.misp.add_event(event, pythonify=True)
 
         if create_file_objects and HAS_FILE_OBJECTS:
             self.create_file_objects(event, ghidraProgram)
@@ -189,7 +220,8 @@ class PyMISPGhidra:
         logger.info("Created new event with name " + title)
 
         logger.info(f"created:event:uuid:{event.uuid}")
-        logger.info(self.get_misp_url(event.uuid))
+        if not self.offline:
+            logger.info(self.get_misp_url(event.uuid))
         return event
 
     def create_file_objects(self, event, ghidraProgram=None):
@@ -203,7 +235,7 @@ class PyMISPGhidra:
         try:
             file_object = FileObject(path)
 
-            self.misp.add_object(event, file_object)
+            event.add_object(file_object)
 
             # Check for PE or elf
             exe_format = ghidraProgram.getExecutableFormat()
@@ -212,39 +244,44 @@ class PyMISPGhidra:
                 logger.info("PE file")
                 PE_object = PEObject(filepath=path)
 
-                self.misp.add_object(event, PE_object)
+                event.add_object(PE_object)
 
                 for s in PE_object.sections:
-                    self.misp.add_object(event, s)
+                    event.add_object(s)
 
             elif "ELF" in exe_format:
                 logger.info("Linux/Unix ELF file.")
 
                 elf_object = ELFObject(filepath=path)
 
-                self.misp.add_object(event, elf_object)
+                event.add_object(elf_object)
 
                 for s in elf_object.sections:
-                    self.misp.add_object(event, s)
+                    event.add_object(s)
 
             elif "Mach-O" in exe_format:
                 logger.info("macOS Mach-O file.")
 
                 macho_object = MachOObject(filepath=path)
 
-                self.misp.add_object(event, macho_object)
+                event.add_object(macho_object)
 
                 for s in macho_object.sections:
-                    self.misp.add_object(event, s)
+                    event.add_object(s)
 
             else:
                 logger.info(f"Other format detected: {exe_format}")
+
+            if not self.offline and self.misp:
+                self.misp.update_event(event)
+
         except Exception as e:
             logger.error(
                 f"Error building ELF/PE/MachO objects, does the file exist on disk ? {e}"
             )
 
     def get_function_infos(self, func):
+
         # Initialize all potential conditional values to None
         ext_lib = fh_hex = fx_hex = fn_sig = fn_code = calling_convention = None
 
@@ -393,7 +430,11 @@ class PyMISPGhidra:
     def add_object_from_function(self, func, event):
 
         obj = self._create_object_from_function(func)
-        self.misp.add_object(event, obj)
+        event.add_object(obj)
+
+        if not self.offline and self.misp:
+            self.misp.add_object(event, obj)
+
         logger.info(f"created:ghidra-function:uuid:{obj.uuid}")
 
     def create_call_tree_relations(
@@ -402,30 +443,44 @@ class PyMISPGhidra:
         """
         Optimized version: Adds references locally to objects and pushes once.
         """
-        self.monitor.setMessage(f"Fetching existing objects from MISP")
+        self.monitor.setMessage(f"Fetching existing objects")
 
         if functions_objects_dict is None:
 
-            # If we don't have the dict, we do need to fetch the event to map it
-            event = self.misp.get_event(event.uuid, pythonify=True)
-            functions_objects_dict = {}
-            logger.info("Rebuilding mapping from fetched event...")
-            for obj in event.get_objects_by_name("ghidra-function"):
+            if self.offline:
+                functions_objects_dict = {}
+                logger.info("Rebuilding mapping from local event...")
+                for obj in event.objects:
+                    if obj.name == "ghidra-function":
+                        if self.monitor.isCancelled():
+                            exit()
+                        entry_attr = obj.get_attributes_by_relation(
+                            "entrypoint-address"
+                        )
 
-                if self.monitor.isCancelled():
-                    exit()
-                entry_attr = obj.get_attributes_by_relation("entrypoint-address")
+                        if entry_attr:
+                            addr = self.interpreter.toAddr(int(entry_attr[0].value))
+                            ghidra_func = self.interpreter.getFunctionAt(addr)
+                            functions_objects_dict[ghidra_func] = obj
+            else:
+                # If we don't have the dict, we do need to fetch the event to map it
+                event = self.misp.get_event(event.uuid, pythonify=True)
+                functions_objects_dict = {}
+                logger.info("Rebuilding mapping from fetched event...")
+                for obj in event.get_objects_by_name("ghidra-function"):
 
-                if entry_attr:
-                    addr = self.interpreter.toAddr(int(entry_attr[0].value))
-                    ghidra_func = self.interpreter.getFunctionAt(addr)
-                    functions_objects_dict[ghidra_func] = obj
+                    if self.monitor.isCancelled():
+                        exit()
+                    entry_attr = obj.get_attributes_by_relation("entrypoint-address")
 
-        self.monitor.initialize(
-            len(functions_objects_dict), f"Building call tree in MISP..."
-        )
+                    if entry_attr:
+                        addr = self.interpreter.toAddr(int(entry_attr[0].value))
+                        ghidra_func = self.interpreter.getFunctionAt(addr)
+                        functions_objects_dict[ghidra_func] = obj
 
-        logger.info(f"Building call tree in MISP for {len(functions_objects_dict)}")
+        self.monitor.initialize(len(functions_objects_dict), f"Building call tree...")
+
+        logger.info(f"Building call tree for {len(functions_objects_dict)}")
         self.monitor.setProgress(0)
 
         i = 0
@@ -468,11 +523,14 @@ class PyMISPGhidra:
         # Final Step: Push the updated event structure with all new references
         if ref_count > 0:
             self.monitor.setIndeterminate(True)
-            self.monitor.setMessage(
-                f"Pushing {ref_count} call-tree relations to MISP..."
-            )
-            logger.info(f"Pushing {ref_count} call-tree relations to MISP...")
-            self.misp.update_event(event)
+            if not self.offline and self.misp:
+                self.monitor.setMessage(
+                    f"Pushing {ref_count} call-tree relations to MISP..."
+                )
+                logger.info(f"Pushing {ref_count} call-tree relations to MISP...")
+                self.misp.update_event(event)
+            else:
+                logger.info(f"Prepared {ref_count} call-tree relations offline.")
 
         return
 
@@ -518,12 +576,13 @@ class PyMISPGhidra:
         self.monitor.setIndeterminate(True)
 
         # Step 2: Push to MISP
-        try:
-            self.monitor.setMessage(f"Pushing {count} objects to MISP...")
-            logger.info(f"Pushing {count} objects to MISP...")
-            self.misp.update_event(event)
-        except Exception as e:
-            logger.error(f"Bulk push failed: {e}")
+        if not self.offline and self.misp:
+            try:
+                self.monitor.setMessage(f"Pushing {count} objects to MISP...")
+                logger.info(f"Pushing {count} objects to MISP...")
+                self.misp.update_event(event)
+            except Exception as e:
+                logger.error(f"Bulk push failed: {e}")
 
         # Call Tree Relations
         if call_tree:
@@ -532,7 +591,8 @@ class PyMISPGhidra:
                 event, limit=limit, functions_objects_dict=functions_objects_dict
             )
             # Update again after adding relations
-            self.misp.update_event(event)
+            if not self.offline and self.misp:
+                self.misp.update_event(event)
 
         return count, fail_count, failed_object_creations
 
@@ -551,5 +611,8 @@ class PyMISPGhidra:
         return func
 
     def get_misp_url(self, uuid):
+
+        if self.offline or self.misp_config is None:
+            return f"offline-event:{uuid}"
 
         return f"{self.misp_config['url']}/events/view/{uuid}"

@@ -105,6 +105,21 @@ if __name__ == "__main__":
         help="Extend the event with --event-uuid",
     )
 
+    parser.add_argument(
+        "--offline",
+        dest="offline",
+        action="store_true",
+        help="Export locally to a MISP JSON file instead of sending to MISP API",
+    )
+
+    parser.add_argument(
+        "--out-dir",
+        dest="out_dir",
+        type=str,
+        default=None,
+        help="Output directory for the offline JSON file",
+    )
+
     # 3. Get Ghidra's arguments and parse them
     # Note: we pass getScriptArgs() specifically so argparse doesn't look at sys.argv
     args_list = getScriptArgs()
@@ -135,6 +150,8 @@ if __name__ == "__main__":
         name_exclude=args.name_exclude,
         min_blocks=args.min_blocks,
         extend_event=args.extend_event,
+        offline=args.offline,
+        out_dir=args.out_dir,
     )
 
     end = time.time()

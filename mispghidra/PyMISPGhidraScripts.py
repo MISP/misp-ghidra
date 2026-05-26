@@ -25,6 +25,7 @@ from mispghidra.PyMISPGhidraIOHandler import PyMISPGhidraIOHandler
 from ghidra.program.flatapi import FlatProgramAPI
 from ghidra.program.model.block import BasicBlockModel
 from ghidra.util.task import TaskMonitor
+from java.util import ArrayList
 
 import time, logging
 
@@ -48,10 +49,29 @@ def functions_to_misp(
     name_exclude=None,
     min_blocks=0,
     extend_event=False,
+    offline=False,
+    out_dir=None,
 ):
 
     isHeadless = state.getTool() is None
     selectedProgram = state.getCurrentProgram()
+
+    # Prompt for offline mode if in GUI and not explicitly set
+    if not isHeadless and not offline:
+        try:
+            java_options = ArrayList()
+            java_options.add("Export to MISP Server")
+            java_options.add("Export locally to JSON file (Offline)")
+            choice = interpreter.askChoice(
+                "Select Export Destination",
+                "Do you want to send data to the configured MISP server, or export it to a local JSON file?",
+                java_options,
+                java_options.get(0),
+            )
+            if choice == "Export locally to JSON file (Offline)":
+                offline = True
+        except Exception:
+            pass  # fallback to passed parameter if cancelled or error
 
     logger.info("=" * 60)
     logger.info(f"STARTING: {os.path.basename(__file__)}")
@@ -66,10 +86,13 @@ def functions_to_misp(
     logger.info(f"Use Selection:     {use_current_selection}")
     logger.info(f"Include Call Tree: {call_tree}")
     logger.info(f"Create New Event:  {new_event}")
+    logger.info(f"Offline Mode:      {offline}")
 
     logger.info("=" * 60)
 
-    mispGhidra = PyMISPGhidra(selectedProgram, interpreter, monitor)
+    mispGhidra = PyMISPGhidra(selectedProgram, interpreter, monitor, offline=offline)
+    is_offline = mispGhidra.offline  # Check if it fell back to offline
+
     IOHandler = PyMISPGhidraIOHandler(
         mispghidra=mispGhidra,
         interpreter=interpreter,
@@ -108,13 +131,43 @@ def functions_to_misp(
         monitor=monitor,
         IOHandler=IOHandler,
         mispGhidra=mispGhidra,
+        offline=is_offline,
     )
 
     mispGhidra.add_object_from_functions(funcs, event=event, call_tree=call_tree)
 
-    IOHandler.handle_message(
-        f"Successfully added functions to event {event.info} ({event.uuid}). {mispGhidra.get_misp_url(event.uuid)} "
-    )
+    if is_offline:
+        try:
+            if out_dir is None:
+                if not isHeadless:
+                    try:
+                        out_dir_file = interpreter.askDirectory(
+                            "Select Output Directory for MISP Event JSON", "Select"
+                        )
+                        if out_dir_file:
+                            out_dir = out_dir_file.getAbsolutePath()
+                    except Exception:
+                        out_dir = "."
+                else:
+                    out_dir = "."
+
+            if out_dir:
+                # Ensure the output directory exists
+                if not os.path.exists(out_dir):
+                    os.makedirs(out_dir)
+
+                out_file = os.path.join(out_dir, f"misp_event_{event.uuid}.json")
+                with open(out_file, "w") as f:
+                    f.write(event.to_json())
+                IOHandler.handle_message(
+                    f"Successfully exported functions offline. Saved to {out_file}"
+                )
+        except Exception as e:
+            IOHandler.handle_exception_message(e, "Error saving offline event to JSON")
+    else:
+        IOHandler.handle_message(
+            f"Successfully added functions to event {event.info} ({event.uuid}). {mispGhidra.get_misp_url(event.uuid)} "
+        )
 
 
 def search_functions_in_misp(
@@ -143,6 +196,12 @@ def search_functions_in_misp(
         isHeadless=isHeadless,
         script_name=os.path.basename(__file__),
     )
+
+    if mispGhidra.offline:
+        IOHandler.handle_message(
+            "Search requires a MISP connection. Currently in offline mode."
+        )
+        return
 
     func_addresses = get_function_selection_addresses(
         func_addresses=func_addresses,
@@ -236,6 +295,12 @@ def create_call_tree(state, interpreter, monitor, event_uuid=None):
         script_name=os.path.basename(__file__),
     )
 
+    if mispGhidra.offline:
+        IOHandler.handle_message(
+            "Creating call tree relations for an existing event requires a MISP connection. Currently in offline mode."
+        )
+        return
+
     # Boilerplate UUID search
     if event_uuid == None:
         # No UUID provided, use sha256 search
@@ -272,7 +337,11 @@ def get_event_selection(
     monitor,
     IOHandler,
     mispGhidra,
+    offline=False,
 ):
+    if offline:
+        new_event = True
+
     if not extend_event and not new_event and event_uuid == None:
 
         action_type = IOHandler.handle_new_or_extend_event()
