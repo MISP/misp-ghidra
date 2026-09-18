@@ -493,6 +493,8 @@ def filter_functions(
                 logger.info(f"No function found at address {func_address}")
                 continue
 
+            name = func.getName()
+
             # IGNORED FUNCTION TYPES
             if "thunk" in ignored_functions and func.isThunk():
                 logger.info(f"ignore thunked {name}")
@@ -511,7 +513,6 @@ def filter_functions(
                 logger.info(f"not include import {name}")
                 continue
 
-            name = func.getName()
             # 1. Exclusion Logic (Skip matches)
             if exclude_re and exclude_re.search(name):
                 logger.info(f"exclude regex {name}")
