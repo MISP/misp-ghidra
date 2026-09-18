@@ -533,6 +533,7 @@ def filter_functions(
             if count < min_blocks:
 
                 logger.info(f"Ignored small func {name} {count}")
+                continue
 
             funcs.append(func)
 
