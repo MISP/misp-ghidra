@@ -328,8 +328,8 @@ class PyMISPGhidra:
             )
 
         # Decompilation logic
-        decomp_results = self.decompiler.decompileFunction(func, 30, self.monitor)
         try:
+            decomp_results = self.decompiler.decompileFunction(func, 30, self.monitor)
             decomp_func = (
                 decomp_results.getDecompiledFunction() if decomp_results else None
             )
