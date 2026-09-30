@@ -51,7 +51,6 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
 ```
 ## Add object to new event in MISP
 ```bash
-pyghidra \
 pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import ${BINARY_PATH} \
     -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
@@ -79,11 +78,10 @@ pyghidraRun --headless ${PROJECT_PATH} ${PROJECT_NAME} \
     -import ${BINARY_PATH} \
     -postScript ghidra_scripts/ghidra-functions-to-MISP.py \
     --new-event \
-    --all-functions
+    --all-functions \
     --name-include "entry" \
     --name-exclude "^_|^abort|^plt" \
-    --ignore thunk \
-    --new-event \
+    --ignore thunk
 ```
 
 # In MISP
