@@ -1,4 +1,3 @@
-from tempfile import template
 from pyghidra import get_current_interpreter
 import toml, os, sys, json, io
 
@@ -21,7 +20,6 @@ from ghidra.app.decompiler.flatapi import FlatDecompilerAPI
 from ghidra.program.model.listing import CodeUnit
 from ghidra.program.model.symbol import SymbolType
 
-global OBJECT_CREATION_LIMIT
 OBJECT_CREATION_LIMIT = 100000
 
 import logging
@@ -164,9 +162,10 @@ class PyMISPGhidra:
             search_result = self.misp.search(
                 controller="attributes", type_attribute="sha256", value=sha256
             )
-            attributes = search_result["Attribute"]
+            attributes = search_result.get("Attribute", [])
             if len(attributes) < 1:
-                raise Exception()
+                logger.info(f"No MISP attributes found for sha256 {sha256}")
+                return events
 
             # Unique events
             events = list(
@@ -181,8 +180,8 @@ class PyMISPGhidra:
 
                 logger.info(f"found:event:uuid:{event_id}")
                 logger.info(self.get_misp_url(event_id))
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to search MISP for existing events: {e}")
 
         return events
 

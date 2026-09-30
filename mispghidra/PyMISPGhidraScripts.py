@@ -306,9 +306,9 @@ def create_call_tree(state, interpreter, monitor, event_uuid=None):
         # No UUID provided, use sha256 search
         search_events = mispGhidra.get_existing_events()
 
-        if search_events == None:
+        if not search_events:
             IOHandler.handle_exception_message(
-                "Couldn't find event in MISP with program sha256",
+                ValueError("Couldn't find event in MISP with program sha256"),
                 "Error retrieving event",
             )
 
