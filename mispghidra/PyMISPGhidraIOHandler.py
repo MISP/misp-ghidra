@@ -76,7 +76,7 @@ class PyMISPGhidraIOHandler:
             if ask_new:
                 java_options.add("new")
 
-            if ask_new:
+            if ask_other:
                 java_options.add("other")
 
             for event in events:
