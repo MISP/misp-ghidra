@@ -315,19 +315,31 @@ class PyMISPGhidra:
             fx_hex = Long.toHexString(fx)
 
         # BSIM Vector
-        signature = self.decompiler.generateSignatures(func, True, 10, None)
-        vector_csv = ",".join(
-            [format(f & 0xFFFFFFFF, "08x") for f in signature.features]
-        )
+        vector_csv = None
+        try:
+            signature = self.decompiler.generateSignatures(func, True, 10, None)
+            if signature is not None and signature.features:
+                vector_csv = ",".join(
+                    [format(f & 0xFFFFFFFF, "08x") for f in signature.features]
+                )
+        except Exception as e:
+            logger.warning(
+                f"Failed to generate BSIM vector for {func.getName()}: {e}"
+            )
 
         # Decompilation logic
         decomp_results = self.decompiler.decompileFunction(func, 30, self.monitor)
         try:
-            decomp_func = decomp_results.getDecompiledFunction()
-            fn_sig = decomp_func.getSignature()
-            fn_code = decomp_func.getC()
-        except:
-            logger.info("There was an error in decompilation!")
+            decomp_func = (
+                decomp_results.getDecompiledFunction() if decomp_results else None
+            )
+            if decomp_func is not None:
+                fn_sig = decomp_func.getSignature()
+                fn_code = decomp_func.getC()
+        except Exception as e:
+            logger.info(
+                f"There was an error in decompilation for {func.getName()}: {e}"
+            )
 
         calling_convention = (
             str(func.getCallingConventionName())
@@ -402,7 +414,8 @@ class PyMISPGhidra:
             ghidra_function.add_attribute("fid-fh-hash", value=info["fid-fh-hash"])
             ghidra_function.add_attribute("fid-fx-hash", value=info["fid-fx-hash"])
 
-        ghidra_function.add_attribute("bsim-vector", value=info["bsim-vector"])
+        if info["bsim-vector"]:
+            ghidra_function.add_attribute("bsim-vector", value=info["bsim-vector"])
 
         if info["decompiled-function"]:
             ghidra_function.add_attribute(
