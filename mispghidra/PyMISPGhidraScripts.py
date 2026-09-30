@@ -235,7 +235,11 @@ def search_functions_in_misp(
 
         monitor.setProgress(i)
         # 1. Extract the info from the current function
-        func_infos = mispGhidra.get_function_infos(func=func)
+        try:
+            func_infos = mispGhidra.get_function_infos(func=func)
+        except Exception as e:
+            logger.warning(f"Skipping function {func.getName()}: {e}")
+            continue
 
         # 2. Prepare our search criteria
         search_terms = []
